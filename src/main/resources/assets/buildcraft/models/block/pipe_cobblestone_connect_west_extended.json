@@ -1,0 +1,20 @@
+{
+    "parent": "block/block",
+    "textures": {
+        "particle": "buildcraft:block/pipe_cobblestone",
+        "texture": "buildcraft:block/pipe_cobblestone"
+    },
+    "elements": [
+        {
+            "from": [-2, 4, 4],
+            "to": [4, 12, 12],
+            "faces": {
+                "down": { "texture": "#texture", "uv": [0,4,4,12] },
+                "up": { "texture": "#texture", "uv": [0,4,4,12] },
+                "north": { "texture": "#texture", "uv": [12,4,16,12] },
+                "south": { "texture": "#texture", "uv": [0,4,4,12] },
+                "east": { "texture": "#texture", "uv": [4,4,12,12] }
+            }
+        }
+    ]
+}

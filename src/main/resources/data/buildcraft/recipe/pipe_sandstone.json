@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "l": "minecraft:sandstone",
+    "g": "minecraft:glass",
+    "r": "minecraft:sandstone"
+  },
+  "pattern": [
+    "lgr"
+  ],
+  "result": {
+    "id": "buildcraft:pipe_sandstone",
+    "count": 8
+  }
+}

@@ -1,0 +1,8 @@
+{
+    "parent": "minecraft:block/orientable",
+    "textures": {
+        "top": "buildcraft:block/engine_stirling",
+        "front": "buildcraft:block/engine_stirling_back",
+        "side": "buildcraft:block/engine_stirling"
+    }
+}

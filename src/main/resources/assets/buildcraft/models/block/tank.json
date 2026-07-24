@@ -1,0 +1,7 @@
+{
+    "parent": "minecraft:block/cube_all",
+    "textures": {
+        "particle": "buildcraft:block/tank/side",
+        "all": "buildcraft:block/tank/side"
+    }
+}

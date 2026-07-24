@@ -1,0 +1,33 @@
+{
+  "feature": "buildcraft:oil_geyser",
+  "placement": [
+    {
+      "type": "buildcraft:oil_spacing",
+      "spacing": 16,
+      "separation": 4,
+      "salt": 4002
+    },
+    {
+      "type": "minecraft:rarity_filter",
+      "chance": 3
+    },
+    {
+      "type": "minecraft:in_square"
+    },
+    {
+      "type": "minecraft:height_range",
+      "height": {
+        "type": "minecraft:uniform",
+        "min_inclusive": {
+          "absolute": -50
+        },
+        "max_inclusive": {
+          "absolute": -10
+        }
+      }
+    },
+    {
+      "type": "minecraft:biome"
+    }
+  ]
+}

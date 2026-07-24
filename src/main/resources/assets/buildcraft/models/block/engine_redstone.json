@@ -1,0 +1,8 @@
+{
+    "parent": "minecraft:block/orientable",
+    "textures": {
+        "top": "buildcraft:block/engine_redstone",
+        "front": "buildcraft:block/engine_redstone_back",
+        "side": "buildcraft:block/engine_redstone"
+    }
+}

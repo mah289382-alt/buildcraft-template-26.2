@@ -1,0 +1,18 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "i": "minecraft:iron_ingot",
+    "r": "minecraft:redstone",
+    "g": "minecraft:gold_ingot",
+    "d": "minecraft:diamond",
+    "p": "minecraft:diamond_pickaxe"
+  },
+  "pattern": [
+    "iri",
+    "gig",
+    "dpd"
+  ],
+  "result": {
+    "id": "buildcraft:quarry"
+  }
+}

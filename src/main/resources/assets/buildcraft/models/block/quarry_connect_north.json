@@ -1,0 +1,14 @@
+{
+    "parent": "block/block",
+    "textures": {
+        "particle": "buildcraft:block/quarry_connected_side",
+        "texture": "buildcraft:block/quarry_connected_side"
+    },
+    "elements": [
+        {
+            "from": [0, 0, -0.1],
+            "to": [16, 16, 0.1],
+            "faces": { "north": { "texture": "#texture" } }
+        }
+    ]
+}

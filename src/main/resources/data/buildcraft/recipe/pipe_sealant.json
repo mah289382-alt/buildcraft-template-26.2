@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "minecraft:green_dye"
+  ],
+  "result": { "id": "buildcraft:pipe_sealant" }
+}

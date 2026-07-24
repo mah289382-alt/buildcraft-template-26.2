@@ -1,0 +1,11 @@
+{
+    "multipart": [
+        { "apply": { "model": "buildcraft:block/frame" } },
+        { "when": { "connected_up": true }, "apply": { "model": "buildcraft:block/frame_connect_up" } },
+        { "when": { "connected_down": true }, "apply": { "model": "buildcraft:block/frame_connect_down" } },
+        { "when": { "connected_north": true }, "apply": { "model": "buildcraft:block/frame_connect_north" } },
+        { "when": { "connected_south": true }, "apply": { "model": "buildcraft:block/frame_connect_south" } },
+        { "when": { "connected_west": true }, "apply": { "model": "buildcraft:block/frame_connect_west" } },
+        { "when": { "connected_east": true }, "apply": { "model": "buildcraft:block/frame_connect_east" } }
+    ]
+}

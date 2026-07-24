@@ -1,0 +1,8 @@
+{
+    "parent": "minecraft:block/orientable",
+    "textures": {
+        "top": "buildcraft:block/engine_creative",
+        "front": "buildcraft:block/engine_creative_back",
+        "side": "buildcraft:block/engine_creative"
+    }
+}

@@ -1,0 +1,11 @@
+{
+  "values": [
+    "#minecraft:is_overworld"
+  ],
+  "remove": [
+    "minecraft:desert",
+    "minecraft:badlands",
+    "minecraft:eroded_badlands",
+    "minecraft:wooded_badlands"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "R": "minecraft:redstone_torch",
+    "T": "minecraft:glass",
+    "G": "minecraft:diamond"
+  },
+  "pattern": [
+    "RTR",
+    "TGT"
+  ],
+  "result": { "id": "buildcraft:refinery" }
+}

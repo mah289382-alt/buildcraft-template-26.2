@@ -1,0 +1,14 @@
+{
+    "multipart": [
+        { "when": { "facing": "north" }, "apply": { "model": "buildcraft:block/quarry" } },
+        { "when": { "facing": "south" }, "apply": { "model": "buildcraft:block/quarry", "y": 180 } },
+        { "when": { "facing": "west" }, "apply": { "model": "buildcraft:block/quarry", "y": 270 } },
+        { "when": { "facing": "east" }, "apply": { "model": "buildcraft:block/quarry", "y": 90 } },
+        { "when": { "connected_up": true }, "apply": { "model": "buildcraft:block/quarry_connect_up" } },
+        { "when": { "connected_down": true }, "apply": { "model": "buildcraft:block/quarry_connect_down" } },
+        { "when": { "connected_north": true }, "apply": { "model": "buildcraft:block/quarry_connect_north" } },
+        { "when": { "connected_south": true }, "apply": { "model": "buildcraft:block/quarry_connect_south" } },
+        { "when": { "connected_west": true }, "apply": { "model": "buildcraft:block/quarry_connect_west" } },
+        { "when": { "connected_east": true }, "apply": { "model": "buildcraft:block/quarry_connect_east" } }
+    ]
+}

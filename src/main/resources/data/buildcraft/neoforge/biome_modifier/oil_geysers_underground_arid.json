@@ -1,0 +1,6 @@
+{
+  "type": "neoforge:add_features",
+  "biomes": "#buildcraft:oil_arid_rare",
+  "features": "buildcraft:oil_geyser_underground_arid",
+  "step": "lakes"
+}

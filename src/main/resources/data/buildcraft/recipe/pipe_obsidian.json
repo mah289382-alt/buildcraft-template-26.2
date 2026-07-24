@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": { "l": "minecraft:obsidian", "g": "minecraft:glass", "r": "minecraft:obsidian" },
+  "pattern": [ "lgr" ],
+  "result": { "id": "buildcraft:pipe_obsidian", "count": 8 }
+}

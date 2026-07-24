@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "i": "minecraft:iron_ingot",
+    "r": "minecraft:redstone",
+    "t": "buildcraft:tank",
+    "b": "minecraft:bucket"
+  },
+  "pattern": [
+    "iri",
+    "iii",
+    "tbt"
+  ],
+  "result": { "id": "buildcraft:pump" }
+}

@@ -1,0 +1,11 @@
+{
+    "parent": "block/block",
+    "textures": { "particle": "buildcraft:block/pipe_obsidian", "texture": "buildcraft:block/pipe_obsidian" },
+    "elements": [ { "from": [4, 4, -2], "to": [12, 12, 4], "faces": {
+                "down": { "texture": "#texture", "uv": [4,12,12,16] },
+                "up": { "texture": "#texture", "uv": [4,0,12,4] },
+                "south": { "texture": "#texture", "uv": [4,4,12,12] },
+                "west": { "texture": "#texture", "uv": [0,4,4,12] },
+                "east": { "texture": "#texture", "uv": [12,4,16,12] }
+    } } ]
+}

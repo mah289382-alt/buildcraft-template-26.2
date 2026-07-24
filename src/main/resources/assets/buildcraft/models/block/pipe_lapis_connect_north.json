@@ -1,0 +1,20 @@
+{
+    "parent": "block/block",
+    "textures": {
+        "particle": "buildcraft:block/pipe_lapis",
+        "texture": "buildcraft:block/pipe_lapis"
+    },
+    "elements": [
+        {
+            "from": [4, 4, 0],
+            "to": [12, 12, 4],
+            "faces": {
+                "down": { "texture": "#texture" },
+                "up": { "texture": "#texture" },
+                "south": { "texture": "#texture" },
+                "west": { "texture": "#texture" },
+                "east": { "texture": "#texture" }
+            }
+        }
+    ]
+}

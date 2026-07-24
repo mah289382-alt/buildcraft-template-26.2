@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "w": "minecraft:iron_ingot",
+    "g": "minecraft:glass",
+    "s": "minecraft:iron_nugget",
+    "p": "minecraft:piston"
+  },
+  "pattern": [
+    "www",
+    " g ",
+    "sps"
+  ],
+  "result": { "id": "buildcraft:engine_combustion" }
+}

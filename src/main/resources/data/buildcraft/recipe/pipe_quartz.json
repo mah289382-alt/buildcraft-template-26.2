@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "l": "minecraft:quartz_block",
+    "g": "minecraft:glass",
+    "r": "minecraft:quartz_block"
+  },
+  "pattern": [
+    "lgr"
+  ],
+  "result": {
+    "id": "buildcraft:pipe_quartz",
+    "count": 8
+  }
+}

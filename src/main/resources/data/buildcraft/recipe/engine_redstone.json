@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "w": "#minecraft:planks",
+    "g": "minecraft:glass",
+    "s": "minecraft:stick",
+    "p": "minecraft:piston"
+  },
+  "pattern": [
+    "www",
+    " g ",
+    "sps"
+  ],
+  "result": { "id": "buildcraft:engine_redstone" }
+}

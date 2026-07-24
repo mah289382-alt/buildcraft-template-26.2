@@ -1,0 +1,5 @@
+{
+    "variants": {
+        "": { "model": "buildcraft:block/mining_well_tube" }
+    }
+}

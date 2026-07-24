@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "l": "minecraft:diamond",
+    "g": "minecraft:glass",
+    "r": "minecraft:diamond"
+  },
+  "pattern": [
+    "lgr"
+  ],
+  "result": {
+    "id": "buildcraft:pipe_diamond",
+    "count": 8
+  }
+}

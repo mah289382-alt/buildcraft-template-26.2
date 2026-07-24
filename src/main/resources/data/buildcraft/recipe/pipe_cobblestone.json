@@ -1,0 +1,15 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "l": "minecraft:cobblestone",
+    "g": "minecraft:glass",
+    "r": "minecraft:cobblestone"
+  },
+  "pattern": [
+    "lgr"
+  ],
+  "result": {
+    "id": "buildcraft:pipe_cobblestone",
+    "count": 8
+  }
+}

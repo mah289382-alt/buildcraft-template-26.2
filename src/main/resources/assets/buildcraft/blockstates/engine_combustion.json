@@ -1,0 +1,10 @@
+{
+    "variants": {
+        "facing=down":  { "model": "buildcraft:block/engine_combustion", "x": 90 },
+        "facing=up":    { "model": "buildcraft:block/engine_combustion", "x": 270 },
+        "facing=north": { "model": "buildcraft:block/engine_combustion" },
+        "facing=south": { "model": "buildcraft:block/engine_combustion", "y": 180 },
+        "facing=west":  { "model": "buildcraft:block/engine_combustion", "y": 270 },
+        "facing=east":  { "model": "buildcraft:block/engine_combustion", "y": 90 }
+    }
+}
