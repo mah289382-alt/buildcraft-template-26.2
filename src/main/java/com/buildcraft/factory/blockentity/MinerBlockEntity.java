@@ -44,25 +44,42 @@ import com.buildcraft.Config;
  * <li>The physical {@link #getTubeBlock()} segments placed alongside that growth are pure invisible markers now
  * (see that class's own javadoc) - the ENTIRE visible shaft is {@code MinerBlockEntityRenderer}'s own single
  * continuous cosmetic beam, with no per-block "pop" to seam against.
- * <li>Growth is no longer target-driven by a pre-detected position at all: {@link #targetLength} auto-advances
- * to {@code wantedLength + 1} every tick the shaft ISN'T {@link #paused}, i.e. the shaft just keeps probing
- * deeper for as long as it's powered, with no upfront search - a subclass's {@code mine} sets {@link #paused}
- * true the moment the newly-reached tip position ({@link #getTipPos}) has real work to do (something to
- * break/drain), halting growth right there until that work finishes, then clears it to resume probing deeper.
- * {@link #stopped} is the one permanent halt (hit real {@link Config#QUARRY_MAX_MINE_DEPTH}).
+ * <li>Growth is no longer target-driven by a pre-detected position at all: the shaft just keeps probing one
+ * block deeper each time it isn't {@link #paused}, with no upfront search - a subclass's {@code mine} inspects
+ * the UNTOUCHED real world state at {@link #getTipPos} (one block below the already-committed
+ * {@link #wantedLength}, i.e. the position growth is about to enter next, not yet overwritten by anything) and
+ * sets {@link #paused} true the moment there's real work to do (something to break/drain), halting growth right
+ * there until that work finishes, then clears it to resume probing deeper.
+ * {@link #stopped} is the one permanent halt (hit real {@link Config#QUARRY_MAX_MINE_DEPTH}, or a subclass's own
+ * permanent obstruction).
  * </ul>
+ * <p>
+ * <b>Real bug fixed (root cause of "the Pump digs through solid ground instead of just sucking water" and "the
+ * Mining Well doesn't drop the blocks it mines")</b>: an earlier version of this class had {@link #mine} run
+ * AFTER growth had already committed the new depth - {@code tickShaftGrowth} unconditionally overwrote whatever
+ * real block occupied a newly-reached depth with the invisible {@link #getTubeBlock()} marker, so by the time a
+ * subclass's {@code mine} inspected {@code getTipPos}, it was always looking at its OWN just-placed tube, never
+ * the real ground. For the Mining Well this meant {@code canBreak}/{@code mineAndRouteDrops} was structurally
+ * unreachable (the tip was never a real breakable block by the time it was checked) - blocks vanished for free
+ * with zero cost and zero drops. For the Pump it meant the "halt at a solid obstruction" check could likewise
+ * never see a real obstruction (only ever its own tube) - the shaft tunnelled through solid rock (and would have
+ * gone through bedrock too) hunting for fluid, instead of stopping the instant it wasn't air. Fixed by having
+ * {@link #tick} call {@code mine} BEFORE {@code tickShaftGrowth} each tick, and by pointing {@link #getTipPos} at
+ * {@code wantedLength + 1} (the next, still-untouched probe position) rather than {@code wantedLength} itself
+ * (the already-committed, already-tube-occupied depth) - a subclass's {@code mine} now always sees genuine,
+ * unmolested world state, and growth (gated by the now-unconditional {@link #paused} check at the very top of
+ * {@link #tickShaftGrowth}) physically can't commit a new depth in the same tick a subclass just decided there's
+ * real work to do there.
  */
 public abstract class MinerBlockEntity extends BlockEntity {
     protected long progress = 0;
 
     protected final SimpleEnergyHandler energy;
 
-    /** The next depth (in blocks below this machine) the shaft should grow to - auto-advances to
-     * {@code wantedLength + 1} every tick the shaft isn't {@link #paused} (see {@link #tickShaftGrowth}), NOT
-     * driven by any pre-detected target position (see class javadoc). */
-    private int targetLength = 0;
     /** Server-authoritative CURRENT physical shaft depth - the real {@link #getTubeBlock()} pole reaches exactly
-     * this far (whole blocks only; see {@link #growthProgress} for the partial block currently growing). */
+     * this far (whole blocks only; see {@link #growthProgress} for the partial block currently growing). Only
+     * ever advances onto real world positions a subclass's {@code mine} has already inspected and cleared this
+     * same tick (see class javadoc) - never blindly overwrites unprocessed ground. */
     private int wantedLength = 0;
     /** How far (0..1) into growing the NEXT block below {@link #wantedLength} the shaft currently is - a real,
      * continuously-advancing fraction (see {@link #tickShaftGrowth}), not a discrete per-tick counter, so a
@@ -101,25 +118,18 @@ public abstract class MinerBlockEntity extends BlockEntity {
         return stopped;
     }
 
-    /** True once the physical shaft has grown down to AT LEAST {@link #targetLength} - a subclass's {@code mine}
-     * should not spend energy/break/drain at {@link #getTipPos} until this is true, so the hose visibly "arrives"
-     * before anything happens. {@code >=} not {@code ==} defensively, though with growth now always advancing by
-     * exactly 1 at a time this is normally an exact match. */
-    protected boolean isFullyExtended() {
-        return wantedLength >= targetLength;
-    }
-
-    /** The position the shaft's growth has most recently reached - {@code wantedLength} blocks straight down
-     * from the machine. Only meaningful once {@link #isFullyExtended()} (otherwise the shaft hasn't actually
-     * grown that far yet); a subclass checks this position for real work the moment growth reaches it. */
+    /** The position the shaft's growth is about to probe next - one block below the already-committed
+     * {@link #wantedLength}, i.e. real, untouched world state that growth has NOT yet overwritten (see class
+     * javadoc's bug-fix note) - a subclass's {@code mine} inspects this every tick to decide whether there's real
+     * work to do before growth is allowed to commit it. */
     protected BlockPos getTipPos(BlockPos ownPos) {
-        return ownPos.below(wantedLength);
+        return ownPos.below(wantedLength + 1);
     }
 
     /** Real {@code TileMiner.mine()} - runs every server tick regardless of current state (idle machines still
      * need to periodically re-check for new work, e.g. a block placed/broken nearby, or new fluid flowing in).
-     * Called AFTER {@link #tickShaftGrowth} each tick, so by the time this runs, {@link #isFullyExtended()}
-     * already reflects this tick's growth. */
+     * Called BEFORE {@link #tickShaftGrowth} each tick (see class javadoc's bug-fix note) so a subclass always
+     * inspects {@link #getTipPos} before growth has any chance to overwrite it. */
     protected abstract void mine(Level level, BlockPos pos);
 
     /** This machine's own real tube variant (real source shares ONE {@code tube} block between both machines,
@@ -136,8 +146,10 @@ public abstract class MinerBlockEntity extends BlockEntity {
             be.clientGrowth = be.wantedLength + be.growthProgress;
             return;
         }
-        be.tickShaftGrowth(level, pos);
+        // mine() FIRST (see class javadoc's bug-fix note): it must inspect getTipPos while it's still genuinely
+        // untouched, before tickShaftGrowth gets any chance to commit/overwrite that position this same tick.
         be.mine(level, pos);
+        be.tickShaftGrowth(level, pos);
     }
 
     /** The interpolated total shaft length (whole blocks placed + the current partial block's fraction) a
@@ -149,26 +161,20 @@ public abstract class MinerBlockEntity extends BlockEntity {
     /** Advances {@link #growthProgress} by {@code 1 / Config.MINER_SHAFT_TICKS_PER_BLOCK} every server tick the
      * shaft isn't {@link #paused}/{@link #stopped} (real, continuous motion, not a discrete per-block pop),
      * placing the next real (invisible) {@link #getTubeBlock()} marker the moment that crosses 1.0 (carrying the
-     * remainder over, so motion never stutters at the boundary). {@link #targetLength} auto-advances to
-     * {@code wantedLength + 1} right here whenever growth has caught up and nothing has paused it - see class
-     * javadoc: growth is no longer driven by any pre-detected target, it just keeps probing deeper on its own.
-     * Syncs every tick it's actively growing (real {@code QuarryBlockEntity.syncToClients} pattern -
-     * {@code sendBlockUpdated} every tick a change happened) so the client's own smoothing always has fresh data
-     * to glide toward. */
+     * remainder over, so motion never stutters at the boundary). {@link #paused} is now checked FIRST and
+     * unconditionally (see class javadoc's bug-fix note) - growth genuinely cannot advance at all while paused,
+     * so a subclass's {@code mine} (which runs first each tick, per {@link #tick}) always gets first look at a
+     * new depth's real content before growth could ever commit/overwrite it. Syncs every tick it's actively
+     * growing (real {@code QuarryBlockEntity.syncToClients} pattern - {@code sendBlockUpdated} every tick a
+     * change happened) so the client's own smoothing always has fresh data to glide toward. */
     private void tickShaftGrowth(Level level, BlockPos ownPos) {
-        if (stopped) {
+        if (stopped || paused) {
             return;
         }
-        if (!paused && wantedLength >= targetLength) {
-            if (wantedLength >= Config.QUARRY_MAX_MINE_DEPTH.get()) {
-                BuildCraft.LOGGER.info("Miner at {}: STOPPED (max depth {} reached)", ownPos, wantedLength);
-                stopped = true;
-                setChanged();
-                return;
-            }
-            targetLength = wantedLength + 1;
-        }
-        if (wantedLength >= targetLength) {
+        if (wantedLength >= Config.QUARRY_MAX_MINE_DEPTH.get()) {
+            BuildCraft.LOGGER.info("Miner at {}: STOPPED (max depth {} reached)", ownPos, wantedLength);
+            stopped = true;
+            setChanged();
             return;
         }
         // DEVIATION (explicit user request: "extend from power", not "just extend"): the shaft must actually
@@ -239,7 +245,6 @@ public abstract class MinerBlockEntity extends BlockEntity {
         super.saveAdditional(output);
         energy.serialize(output.child("energy"));
         output.putLong("progress", progress);
-        output.putInt("targetLength", targetLength);
         output.putInt("wantedLength", wantedLength);
         output.putDouble("growthProgress", growthProgress);
         output.putBoolean("paused", paused);
@@ -251,7 +256,6 @@ public abstract class MinerBlockEntity extends BlockEntity {
         super.loadAdditional(input);
         input.child("energy").ifPresent(energy::deserialize);
         progress = input.getLongOr("progress", 0L);
-        targetLength = input.getIntOr("targetLength", 0);
         wantedLength = input.getIntOr("wantedLength", 0);
         growthProgress = input.getDoubleOr("growthProgress", 0.0);
         paused = input.getBooleanOr("paused", false);

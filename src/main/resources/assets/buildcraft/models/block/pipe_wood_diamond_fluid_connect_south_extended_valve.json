@@ -1,0 +1,11 @@
+{
+    "parent": "block/block",
+    "textures": { "particle": "buildcraft:block/pipe_wood_diamond_fluid_valve", "texture": "buildcraft:block/pipe_wood_diamond_fluid_valve" },
+    "elements": [ { "from": [4, 4, 12], "to": [12, 12, 18], "faces": {
+                "down": { "texture": "#texture", "uv": [4,0,12,4] },
+                "up": { "texture": "#texture", "uv": [4,12,12,16] },
+                "north": { "texture": "#texture", "uv": [4,4,12,12] },
+                "west": { "texture": "#texture", "uv": [12,4,16,12] },
+                "east": { "texture": "#texture", "uv": [0,4,4,12] }
+    } } ]
+}

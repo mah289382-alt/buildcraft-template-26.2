@@ -96,6 +96,14 @@ public class BuildCraftClient {
         event.registerBlockEntityRenderer(TransportContent.PIPE_COBBLESTONE_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(TransportContent.PIPE_IRON_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
         event.registerBlockEntityRenderer(TransportContent.PIPE_VOID_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_GOLD_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_STONE_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_QUARTZ_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_SANDSTONE_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_CLAY_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_WOOD_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_WOOD_DIAMOND_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
+        event.registerBlockEntityRenderer(TransportContent.PIPE_DIAMOND_FLUID_BLOCK_ENTITY.get(), FluidPipeBlockEntityRenderer::new);
 
         // Mining Well/Pump: TubeBlock itself is a pure invisible marker (see its own javadoc) - this renderer
         // draws the ENTIRE visible shaft as one continuous, flowing cosmetic beam (see its own class javadoc).

@@ -1,0 +1,7 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "buildcraft:pipe_quartz_fluid"
+  ],
+  "result": { "id": "buildcraft:pipe_quartz" }
+}

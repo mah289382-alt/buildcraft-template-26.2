@@ -42,11 +42,19 @@ import com.buildcraft.factory.FactoryContent;
  * DEVIATION FROM SOURCE (explicit user request - see {@link MinerBlockEntity}'s class javadoc for the full
  * reasoning): real source's {@code buildQueue} scans straight down for the first fluid BEFORE any shaft growth
  * happens at all. Here, the downward scan is gone entirely - the shaft grows one probe at a time (driven purely
- * by power, via the base class), and only checks for fluid once growth actually REACHES a new position
- * ({@link MinerBlockEntity#getTipPos}): air lets growth continue past it untouched, a solid obstruction halts
- * permanently (a Pump can't dig through rock), and fluid pauses growth right there to flood-fill and drain it -
- * {@link #buildQueueAt} is the same real flood-fill algorithm, just seeded from the already-known tip position
- * instead of also performing the downward search itself.
+ * by power, via the base class), and only checks for fluid once growth is ABOUT to reach a new position
+ * ({@link MinerBlockEntity#getTipPos}, real untouched world state): air lets growth continue past it untouched,
+ * a solid obstruction halts permanently (a Pump can't dig through rock), and fluid pauses growth right there to
+ * flood-fill and drain it - {@link #buildQueueAt} is the same real flood-fill algorithm, just seeded from the
+ * already-known tip position instead of also performing the downward search itself.
+ * <p>
+ * <b>Real bug fixed</b> (see {@link MinerBlockEntity}'s own bug-fix note for the full root cause): the shaft's
+ * growth used to unconditionally overwrite whatever real block occupied a newly-reached depth with its own
+ * invisible tube marker BEFORE this class ever got to inspect it, so the "halt at a solid obstruction" check
+ * above could never actually see a real obstruction (only ever its own already-placed tube, which reads as
+ * passable) - the Pump tunnelled straight through solid rock (and would have gone through bedrock too) hunting
+ * for fluid, instead of stopping the instant the ground in front of it wasn't air or a fluid. Fixed at the base
+ * class level - {@code mine} now always sees genuine, unmolested world state.
  * <p>
  * Real source's infinite-water-source detection is ported in simplified form: real source additionally checks
  * whether the position directly below a 2-source-neighbour point is itself water or solid (the exact same check
@@ -96,9 +104,6 @@ public class PumpBlockEntity extends MinerBlockEntity {
         }
 
         if (!queueBuilt) {
-            if (!isFullyExtended()) {
-                return; // still growing toward the next probe position
-            }
             BlockPos tip = getTipPos(pos);
             if (level.isOutsideBuildHeight(tip)) {
                 stopped = true;
@@ -106,18 +111,16 @@ public class PumpBlockEntity extends MinerBlockEntity {
             }
             FluidState fs = level.getFluidState(tip);
             if (fs.isEmpty()) {
-                // Real bug (found via user report - "stopping at 1 block", confirmed via log: the obstruction
-                // was its OWN just-placed tube marker): tickShaftGrowth places a real (invisible) TubeBlock at
-                // this exact tip position the moment growth reaches it, in the SAME tick, before mine() runs -
-                // so without excluding getTubeBlock() here, the Pump immediately saw its own marker as solid
-                // ground and stopped forever. Matches the real "!isAirBlock && block != tube" rule the old
-                // pre-refactor scan used - a tube marker is passable, same as air.
+                // getTipPos now always points at real, untouched world state (see MinerBlockEntity's own
+                // bug-fix note) - growth hasn't been allowed to overwrite this position with a tube marker yet,
+                // so an air/non-air check here is genuinely reliable: a real solid obstruction (not fluid, not
+                // air) halts the Pump permanently instead of silently tunnelling through it.
                 BlockState tipState = level.getBlockState(tip);
-                if (!tipState.isAir() && tipState.getBlock() != getTubeBlock()) {
+                if (!tipState.isAir()) {
                     BuildCraft.LOGGER.info("Pump at {}: STOPPED at {} - solid obstruction ({})", pos, tip, tipState);
                     stopped = true; // real solid obstruction - a Pump can't dig through it
                 }
-                return; // air (or own tube marker): nothing here yet, base class keeps probing deeper next tick
+                return; // air: nothing here yet, growth commits it for free this tick, keep probing next tick
             }
             paused = true;
             buildQueueAt(level, tip, fs.getType());

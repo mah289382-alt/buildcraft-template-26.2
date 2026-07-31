@@ -19,6 +19,7 @@ import com.buildcraft.BuildCraft;
 import com.buildcraft.core.item.WrenchItem;
 import com.buildcraft.transport.block.FluidPipeBlock;
 import com.buildcraft.transport.block.PipeBlock;
+import com.buildcraft.transport.block.WoodFluidPipeBlock;
 import com.buildcraft.transport.block.WoodPipeBlock;
 import com.buildcraft.transport.blockentity.FluidPipeBlockEntity;
 import com.buildcraft.transport.blockentity.PipeBlockEntity;
@@ -28,6 +29,7 @@ import com.buildcraft.transport.menu.WoodDiamondFilterMenu;
 import com.buildcraft.transport.pipe.behaviour.ClayBehaviour;
 import com.buildcraft.transport.pipe.behaviour.DaizuliBehaviour;
 import com.buildcraft.transport.pipe.behaviour.DiamondBehaviour;
+import com.buildcraft.transport.pipe.behaviour.DiamondFluidBehaviour;
 import com.buildcraft.transport.pipe.behaviour.EmzuliBehaviour;
 import com.buildcraft.transport.pipe.behaviour.IronBehaviour;
 import com.buildcraft.transport.pipe.behaviour.LapisBehaviour;
@@ -297,6 +299,92 @@ public final class TransportContent {
             BLOCK_ENTITY_TYPES.register("pipe_void_fluid", () -> new BlockEntityType<>(
                     (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_VOID_FLUID_BLOCK_ENTITY.get(), pos, state, () -> VoidBehaviour.INSTANCE),
                     PIPE_VOID_FLUID_BLOCK.get()));
+
+    // Fluid pipes Stage 2: the remaining 8 of the real 11 tiers - Gold/Stone/Quartz/Sandstone/Clay reuse the same
+    // shared behaviour instances as their item-pipe counterparts (matching real source's one-class-per-material
+    // design, same pattern as Stage 1's Cobblestone/Iron/Void); Wood/Diamond-Wood use WoodFluidPipeBlock for the
+    // real valve blockstate property (see that class's javadoc); Diamond uses a dedicated DiamondFluidBehaviour
+    // reusing Diamond's own 54-slot filter shape (real source: PipeBehaviourDiamondFluid extends
+    // PipeBehaviourDiamond) rather than the item-comparison DiamondBehaviour directly.
+    public static final DeferredBlock<FluidPipeBlock> PIPE_GOLD_FLUID_BLOCK = BLOCKS.registerBlock("pipe_gold_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_GOLD_FLUID_BLOCK_ENTITY.get(), () -> PassiveBehaviour.GOLD),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.GOLD).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_GOLD_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_gold_fluid", PIPE_GOLD_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_GOLD_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_gold_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_GOLD_FLUID_BLOCK_ENTITY.get(), pos, state, () -> PassiveBehaviour.GOLD),
+                    PIPE_GOLD_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_STONE_FLUID_BLOCK = BLOCKS.registerBlock("pipe_stone_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_STONE_FLUID_BLOCK_ENTITY.get(), () -> PassiveBehaviour.STONE),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.STONE).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_STONE_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_stone_fluid", PIPE_STONE_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_STONE_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_stone_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_STONE_FLUID_BLOCK_ENTITY.get(), pos, state, () -> PassiveBehaviour.STONE),
+                    PIPE_STONE_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_QUARTZ_FLUID_BLOCK = BLOCKS.registerBlock("pipe_quartz_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_QUARTZ_FLUID_BLOCK_ENTITY.get(), () -> PassiveBehaviour.QUARTZ),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.QUARTZ).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_QUARTZ_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_quartz_fluid", PIPE_QUARTZ_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_QUARTZ_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_quartz_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_QUARTZ_FLUID_BLOCK_ENTITY.get(), pos, state, () -> PassiveBehaviour.QUARTZ),
+                    PIPE_QUARTZ_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_SANDSTONE_FLUID_BLOCK = BLOCKS.registerBlock("pipe_sandstone_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_SANDSTONE_FLUID_BLOCK_ENTITY.get(), () -> SandstoneBehaviour.INSTANCE),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.SAND).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_SANDSTONE_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_sandstone_fluid", PIPE_SANDSTONE_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_SANDSTONE_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_sandstone_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_SANDSTONE_FLUID_BLOCK_ENTITY.get(), pos, state, () -> SandstoneBehaviour.INSTANCE),
+                    PIPE_SANDSTONE_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_CLAY_FLUID_BLOCK = BLOCKS.registerBlock("pipe_clay_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_CLAY_FLUID_BLOCK_ENTITY.get(), () -> ClayBehaviour.INSTANCE),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.CLAY).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_CLAY_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_clay_fluid", PIPE_CLAY_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_CLAY_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_clay_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_CLAY_FLUID_BLOCK_ENTITY.get(), pos, state, () -> ClayBehaviour.INSTANCE),
+                    PIPE_CLAY_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_WOOD_FLUID_BLOCK = BLOCKS.registerBlock("pipe_wood_fluid",
+            props -> new WoodFluidPipeBlock(props, () -> TransportContent.PIPE_WOOD_FLUID_BLOCK_ENTITY.get(), WoodBehaviour::new),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_WOOD_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_wood_fluid", PIPE_WOOD_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_WOOD_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_wood_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_WOOD_FLUID_BLOCK_ENTITY.get(), pos, state, WoodBehaviour::new),
+                    PIPE_WOOD_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_WOOD_DIAMOND_FLUID_BLOCK = BLOCKS.registerBlock("pipe_wood_diamond_fluid",
+            props -> new WoodFluidPipeBlock(props, () -> TransportContent.PIPE_WOOD_DIAMOND_FLUID_BLOCK_ENTITY.get(), WoodDiamondBehaviour::new),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_WOOD_DIAMOND_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_wood_diamond_fluid", PIPE_WOOD_DIAMOND_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_WOOD_DIAMOND_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_wood_diamond_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_WOOD_DIAMOND_FLUID_BLOCK_ENTITY.get(), pos, state, WoodDiamondBehaviour::new),
+                    PIPE_WOOD_DIAMOND_FLUID_BLOCK.get()));
+
+    public static final DeferredBlock<FluidPipeBlock> PIPE_DIAMOND_FLUID_BLOCK = BLOCKS.registerBlock("pipe_diamond_fluid",
+            props -> new FluidPipeBlock(props, () -> TransportContent.PIPE_DIAMOND_FLUID_BLOCK_ENTITY.get(), DiamondFluidBehaviour::new),
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.DIAMOND).strength(0.25F, 3.0F).noOcclusion());
+    public static final DeferredItem<BlockItem> PIPE_DIAMOND_FLUID_ITEM =
+            ITEMS.registerSimpleBlockItem("pipe_diamond_fluid", PIPE_DIAMOND_FLUID_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<FluidPipeBlockEntity>> PIPE_DIAMOND_FLUID_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("pipe_diamond_fluid", () -> new BlockEntityType<>(
+                    (pos, state) -> new FluidPipeBlockEntity(TransportContent.PIPE_DIAMOND_FLUID_BLOCK_ENTITY.get(), pos, state, DiamondFluidBehaviour::new),
+                    PIPE_DIAMOND_FLUID_BLOCK.get()));
 
     private TransportContent() {}
 }

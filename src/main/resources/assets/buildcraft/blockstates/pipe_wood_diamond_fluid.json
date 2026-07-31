@@ -1,0 +1,321 @@
+﻿{
+    "multipart":  [
+                      {
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_down":  true,
+                                       "extended_down":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_down"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_down":  true,
+                                                       "extended_down":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "up"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "north"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "south"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "west"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "east"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_down_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "down"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_down_extended_valve"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_up":  true,
+                                       "extended_up":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_up"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_up":  true,
+                                                       "extended_up":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "down"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "north"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "south"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "west"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "east"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_up_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "up"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_up_extended_valve"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_north":  true,
+                                       "extended_north":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_north"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_north":  true,
+                                                       "extended_north":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "down"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "up"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "south"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "west"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "east"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_north_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "north"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_north_extended_valve"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_south":  true,
+                                       "extended_south":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_south"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_south":  true,
+                                                       "extended_south":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "down"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "up"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "north"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "west"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "east"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_south_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "south"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_south_extended_valve"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_west":  true,
+                                       "extended_west":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_west"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_west":  true,
+                                                       "extended_west":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "down"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "up"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "north"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "south"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "east"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_west_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "west"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_west_extended_valve"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "connected_east":  true,
+                                       "extended_east":  false
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_east"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "AND":  [
+                                                   {
+                                                       "connected_east":  true,
+                                                       "extended_east":  true
+                                                   },
+                                                   {
+                                                       "OR":  [
+                                                                  {
+                                                                      "valve":  "none"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "down"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "up"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "north"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "south"
+                                                                  },
+                                                                  {
+                                                                      "valve":  "west"
+                                                                  }
+                                                              ]
+                                                   }
+                                               ]
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_east_extended"
+                                    }
+                      },
+                      {
+                          "when":  {
+                                       "valve":  "east"
+                                   },
+                          "apply":  {
+                                        "model":  "buildcraft:block/pipe_wood_diamond_fluid_connect_east_extended_valve"
+                                    }
+                      }
+                  ]
+}

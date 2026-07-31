@@ -1,0 +1,14 @@
+{
+    "parent": "block/block",
+    "textures": { "particle": "buildcraft:block/pipe_stone_fluid", "texture": "buildcraft:block/pipe_stone_fluid" },
+    "elements": [ {
+        "from": [0, 4, 4], "to": [4, 12, 12],
+        "faces": {
+            "down": { "texture": "#texture" },
+            "up": { "texture": "#texture" },
+            "north": { "texture": "#texture" },
+            "south": { "texture": "#texture" },
+            "east": { "texture": "#texture" }
+        }
+    } ]
+}

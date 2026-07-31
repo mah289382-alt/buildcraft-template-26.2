@@ -95,6 +95,18 @@ public final class WoodDiamondBehaviour extends WoodBehaviour implements MenuPro
         } while (currentFilter != start && filters.getItem(currentFilter).isEmpty());
     }
 
+    /** Real {@code BCTransportConfig}: Diamond-Wood's fluid pipe transfers {@code baseFlowRate*8}=80 mB/tick,
+     * delay 10 - a genuinely different (faster) rate than plain Wood's 10/10, even though real source registers
+     * the exact same {@code PipeBehaviourWoodDiamond} Java class for both {@code diaWoodFluid} and
+     * {@code diaWoodItem} (confirmed via {@code BCTransportPipes.java}: no separate fluid-filter logic class
+     * exists for this tier at all - the item filter's {@code sideCheck} simply has no
+     * {@code PipeEventFluid} handler, so it never narrows fluid routing, only {@link WoodBehaviour}'s own
+     * inherited {@link WoodBehaviour#filterFluidDestinations} (the input-face restriction) applies). */
+    @Override
+    public int fluidTransferPerTick() {
+        return 80;
+    }
+
     @Override
     public @Nullable AbstractContainerMenu createMenu(int containerId, Inventory playerInventory, Player player) {
         return new WoodDiamondFilterMenu(TransportContent.WOOD_DIAMOND_FILTER_MENU.get(), containerId, playerInventory, this);

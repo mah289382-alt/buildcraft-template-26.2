@@ -298,13 +298,13 @@ public class Config {
             .comment("FE cost for the Pump to drain a single fluid source block (fixed, not hardness-based).")
             .defineInRange("pumpEnergyPerDrain", 100, 0, Integer.MAX_VALUE);
 
-    // Real source: BCCoreConfig.pumpMaxDistance, a real config value bounding the flood-fill search radius - the
-    // exact real default wasn't confirmed from source reading (not directly cited in the files read this
-    // session), so this is a reasonable, clearly-flagged-as-unverified default rather than a claimed-exact port.
+    // Real source: BCCoreConfig.pumpMaxDistance - confirmed directly this session (common/buildcraft/core/
+    // BCCoreConfig.java: "propPumpMaxDistance = config.get(general, "pumpMaxDistance", 64)"). The earlier 20
+    // default in this port was an unverified guess; corrected to the real value now that it's been read.
     public static final ModConfigSpec.IntValue PUMP_MAX_DISTANCE = BUILDER
             .comment("How far (in blocks) the Pump's flood-fill fluid search can reach from its own position. "
-                    + "Real source has an equivalent config value; this default isn't confirmed against it.")
-            .defineInRange("pumpMaxDistance", 20, 1, 128);
+                    + "Matches real source's own default (BCCoreConfig.pumpMaxDistance = 64).")
+            .defineInRange("pumpMaxDistance", 64, 1, 256);
 
     // Real source: TilePump's own tank (Tank("tank", 16 * Fluid.BUCKET_VOLUME, this)) - 16 buckets, matching the
     // Tank block's own default capacity.
@@ -325,8 +325,8 @@ public class Config {
     // block from the machine down to its target in one synchronous call, the same tick a target is found - both
     // the physical pole and (functionally) the ability to start mining/draining appear instantly. This value
     // paces that placement to 1 block per this-many ticks instead, and gates a Mining Well/Pump's own work
-    // (see MinerBlockEntity.isFullyExtended()) behind the shaft having physically reached its target first, so
-    // the hose visibly reaches down before anything happens - a real gameplay change, not a source-accuracy fix.
+    // (see MinerBlockEntity.paused) behind the shaft having physically reached its target first, so the hose
+    // visibly reaches down before anything happens - a real gameplay change, not a source-accuracy fix.
     public static final ModConfigSpec.IntValue MINER_SHAFT_TICKS_PER_BLOCK = BUILDER
             .comment("Ticks to extend the Mining Well/Pump shaft by 1 block - it probes continuously from power "
                     + "alone and only pauses to mine/drain (see MinerBlockEntity.paused/stopped), it doesn't "

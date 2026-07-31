@@ -35,9 +35,10 @@ import com.buildcraft.transport.pipe.PipeConnectable;
  * DEVIATION FROM SOURCE (explicit user request - see {@link MinerBlockEntity}'s class javadoc for the full
  * reasoning): the well no longer scans AHEAD to find its next breakable position before growing toward it. It
  * grows one probe at a time (driven purely by power, via the base class), and only checks {@link #canBreak} once
- * the shaft's growth actually REACHES a new position ({@link MinerBlockEntity#getTipPos}) - air just lets growth
- * continue past it untouched, a breakable block/fluid pauses growth right there to work on it, and an
- * unbreakable obstruction halts permanently. No more upfront detection before extending at all.
+ * the shaft's growth is ABOUT to reach a new position ({@link MinerBlockEntity#getTipPos}, real untouched world
+ * state - see that class's own bug-fix note) - air just lets growth continue past it untouched, a breakable
+ * block/fluid pauses growth right there to work on it, and an unbreakable obstruction halts permanently. No more
+ * upfront detection before extending at all.
  */
 public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConnectable {
     public MiningWellBlockEntity(BlockPos pos, BlockState state) {
@@ -47,9 +48,7 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
 
     @Override
     protected void mine(Level level, BlockPos pos) {
-        if (isComplete() || !isFullyExtended()) {
-            // Either permanently stopped, or the shaft hasn't finished growing to the next probe position yet -
-            // nothing to check/work on until it has (MinerBlockEntity.tickShaftGrowth runs first each tick).
+        if (isComplete()) {
             return;
         }
         BlockPos tip = getTipPos(pos);
@@ -59,14 +58,9 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
                 return;
             }
             if (!canBreak(level, tip)) {
-                // Real bug (found via user report - "stopping at 1 block", confirmed via log on the Pump: the
-                // obstruction was its OWN just-placed tube marker): tickShaftGrowth places a real (invisible)
-                // TubeBlock at this exact tip position the moment growth reaches it, in the SAME tick, before
-                // mine() runs - so without excluding getTubeBlock() (see canBreak below), the well would
-                // immediately see its own marker as an obstruction and stop forever.
                 BlockState tipState = level.getBlockState(tip);
-                if (tipState.isAir() || tipState.getBlock() == getTubeBlock()) {
-                    return; // nothing here - the base class auto-advances the target next tick, keep probing
+                if (tipState.isAir()) {
+                    return; // nothing here - growth commits it for free this tick, keep probing next tick
                 }
                 BuildCraft.LOGGER.info("MiningWell at {}: STOPPED at {} - unbreakable ({})", pos, tip, tipState);
                 stopped = true; // real obstruction (e.g. bedrock) - halt forever
@@ -104,7 +98,7 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
             return fluidState.getType().getFluidType().getViscosity() <= 1000;
         }
         BlockState state = level.getBlockState(target);
-        if (state.isAir() || state.getBlock() == getTubeBlock()) {
+        if (state.isAir()) {
             return false;
         }
         float hardness = state.getDestroySpeed(level, target);

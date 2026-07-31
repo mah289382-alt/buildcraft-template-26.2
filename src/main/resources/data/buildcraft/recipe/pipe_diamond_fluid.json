@@ -1,0 +1,8 @@
+{
+  "type": "minecraft:crafting_shapeless",
+  "ingredients": [
+    "buildcraft:pipe_diamond",
+    "buildcraft:pipe_sealant"
+  ],
+  "result": { "id": "buildcraft:pipe_diamond_fluid" }
+}

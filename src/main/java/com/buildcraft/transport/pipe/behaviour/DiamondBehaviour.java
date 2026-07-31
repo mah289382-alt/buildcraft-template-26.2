@@ -37,8 +37,13 @@ import com.buildcraft.transport.pipe.PipeBehaviour;
  * {@code PipeBlockEntity.onReachCenter}), so a matching item goes to one matching face at a time (round-robin
  * across ties) rather than being divided across all of them in the same tick. An explicit, documented scope
  * reduction given the existing single-destination-per-item architecture.
+ * <p>
+ * Not {@code final}: {@link DiamondFluidBehaviour} extends this to reuse the exact same 54-slot filter
+ * storage/GUI shape for the fluid pipe tier, matching real source's own {@code PipeBehaviourDiamondFluid extends
+ * PipeBehaviourDiamond} relationship (the SAME filter slots, just compared by the fluid contained in each slot's
+ * bucket item instead of by item identity).
  */
-public final class DiamondBehaviour implements PipeBehaviour, MenuProvider {
+public class DiamondBehaviour implements PipeBehaviour, MenuProvider {
     public static final int FILTERS_PER_SIDE = 9;
     public static final int TOTAL_FILTER_SLOTS = FILTERS_PER_SIDE * 6;
 

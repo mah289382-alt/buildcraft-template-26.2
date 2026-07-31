@@ -22,4 +22,11 @@ public final class SandstoneBehaviour implements PipeBehaviour {
     public boolean connectsToContainers() {
         return false;
     }
+
+    /** Real {@code BCTransportConfig}: Sandstone's fluid pipe transfers {@code baseFlowRate*2}=20 mB/tick, delay
+     * 10 (same rate as Stone - confirmed in source, both use the doubled base rate). */
+    @Override
+    public int fluidTransferPerTick() {
+        return 20;
+    }
 }

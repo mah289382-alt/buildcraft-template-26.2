@@ -109,6 +109,14 @@ public class BuildCraft {
                 output.accept(TransportContent.PIPE_COBBLESTONE_FLUID_ITEM.get());
                 output.accept(TransportContent.PIPE_IRON_FLUID_ITEM.get());
                 output.accept(TransportContent.PIPE_VOID_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_GOLD_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_STONE_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_QUARTZ_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_SANDSTONE_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_CLAY_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_WOOD_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_WOOD_DIAMOND_FLUID_ITEM.get());
+                output.accept(TransportContent.PIPE_DIAMOND_FLUID_ITEM.get());
                 output.accept(FactoryContent.MINING_WELL_ITEM.get());
                 output.accept(FactoryContent.PUMP_ITEM.get());
             }).build());
@@ -260,6 +268,24 @@ public class BuildCraft {
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_IRON_FLUID_BLOCK_ENTITY.get(),
                 (blockEntity, side) -> blockEntity.getFluidHandler(side));
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_VOID_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+
+        // Fluid pipes Stage 2 (Gold/Stone/Quartz/Sandstone/Clay/Wood/Diamond-Wood/Diamond).
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_GOLD_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_STONE_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_QUARTZ_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_SANDSTONE_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_CLAY_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_WOOD_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_WOOD_DIAMOND_FLUID_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getFluidHandler(side));
+        event.registerBlockEntity(Capabilities.Fluid.BLOCK, TransportContent.PIPE_DIAMOND_FLUID_BLOCK_ENTITY.get(),
                 (blockEntity, side) -> blockEntity.getFluidHandler(side));
 
         // Mining Well/Pump - real source's shared TileMiner MJ battery, exposed as generic FE (same substitution

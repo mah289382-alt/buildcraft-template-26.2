@@ -7,6 +7,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 
 import com.buildcraft.energy.blockentity.EngineBlockEntity;
+import com.buildcraft.transport.blockentity.FluidPipeBlockEntity;
 import com.buildcraft.transport.blockentity.PipeBlockEntity;
 
 /**
@@ -36,6 +37,14 @@ public class WrenchItem extends Item {
             boolean handled = context.isSecondaryUseActive()
                     ? pipe.onWrenchClick(null)
                     : pipe.onWrenchClick(context.getClickedFace());
+            if (handled) {
+                return InteractionResult.CONSUME;
+            }
+        }
+        if (blockEntity instanceof FluidPipeBlockEntity fluidPipe) {
+            boolean handled = context.isSecondaryUseActive()
+                    ? fluidPipe.onWrenchClick(null)
+                    : fluidPipe.onWrenchClick(context.getClickedFace());
             if (handled) {
                 return InteractionResult.CONSUME;
             }

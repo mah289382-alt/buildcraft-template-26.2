@@ -1,5 +1,8 @@
 package com.buildcraft.transport.pipe.behaviour;
 
+import java.util.EnumSet;
+import java.util.Set;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.DyeColor;
@@ -10,13 +13,16 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.fluid.FluidResource;
 import net.neoforged.neoforge.transfer.item.ItemResource;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jspecify.annotations.Nullable;
 
 import com.buildcraft.Config;
+import com.buildcraft.transport.block.FluidPipeBlock;
 import com.buildcraft.transport.block.PipeBlock;
+import com.buildcraft.transport.blockentity.FluidPipeBlockEntity;
 import com.buildcraft.transport.blockentity.PipeBlockEntity;
 import com.buildcraft.transport.pipe.PipeBehaviour;
 import com.buildcraft.transport.pipe.PulsedEnergyReceiver;
@@ -92,13 +98,26 @@ public class WoodBehaviour implements PipeBehaviour {
         currentDir = null;
     }
 
-    /** Wood only ever faces a real inventory - never another pipe, matching {@code canFaceDirection}. */
+    /**
+     * Wood only ever faces a real inventory - never another pipe, matching {@code canFaceDirection}. Dispatches
+     * to the item or fluid pipe connectivity check depending on which concrete block entity is actually placed at
+     * {@code pipePos}, since a single {@code WoodBehaviour} instance only ever backs one flavour for its whole
+     * lifetime (either an item {@link PipeBlockEntity} or a fluid {@link FluidPipeBlockEntity}, never both) - the
+     * same real bug/fix already applied to {@link IronBehaviour#isValidFacing}.
+     */
     private static boolean isTileFace(Level level, BlockPos pipePos, Direction dir) {
+        if (level.getBlockEntity(pipePos) instanceof FluidPipeBlockEntity) {
+            return FluidPipeBlock.isConnectable(level, pipePos, dir) && !isFluidPipeNeighbor(level, pipePos, dir);
+        }
         return PipeBlock.isConnectable(level, pipePos, dir) && !isPipeNeighbor(level, pipePos, dir);
     }
 
     private static boolean isPipeNeighbor(Level level, BlockPos pipePos, Direction dir) {
         return level.getBlockEntity(pipePos.relative(dir)) instanceof PipeBlockEntity;
+    }
+
+    private static boolean isFluidPipeNeighbor(Level level, BlockPos pipePos, Direction dir) {
+        return level.getBlockEntity(pipePos.relative(dir)) instanceof FluidPipeBlockEntity;
     }
 
     /**
@@ -112,6 +131,18 @@ public class WoodBehaviour implements PipeBehaviour {
         cachedLevel = level;
         cachedPos = pipePos;
         cachedPipe = pipe;
+        if (currentDir == null || !isTileFace(level, pipePos, currentDir)) {
+            advanceFacing(level, pipePos);
+        }
+    }
+
+    /** Fluid-pipe parallel to {@link #tick}: a fluid Wood/Diamond-Wood pipe has no power-driven extraction (see
+     * {@link #filterFluidDestinations}'s javadoc), but still needs the same lazy facing auto-advance so
+     * {@code currentDir} - and therefore the valve texture and the input-only-face restriction - actually
+     * activates, rather than staying permanently unset (this hook is the fluid pipe's only per-tick entry point;
+     * {@link #tick} above is never invoked for a {@link FluidPipeBlockEntity}). */
+    @Override
+    public void fluidTick(Level level, BlockPos pipePos, FluidPipeBlockEntity pipe) {
         if (currentDir == null || !isTileFace(level, pipePos, currentDir)) {
             advanceFacing(level, pipePos);
         }
@@ -142,6 +173,35 @@ public class WoodBehaviour implements PipeBehaviour {
     @Override
     public @Nullable Direction getValveDirection() {
         return currentDir;
+    }
+
+    /**
+     * Ports real {@code PipeBehaviourWood.fluidSideCheck}: the wrench-set extraction face is input-only for fluid
+     * too - fluid may never flow back OUT through it, matching the same asymmetric-face concept as item
+     * extraction. Real source's fluid intake through that face is ALSO power-gated (its {@code extract()} spends
+     * the same MJ budget on either items or fluid, whichever {@code IFlowItems}/{@code IFlowFluid} the pipe has) -
+     * NOT ported here, since this whole fluid-pipe module already has every tier passively self-serve fluid from
+     * any adjacent source (see {@code FluidPipeBlockEntity}'s documented deviation) rather than requiring an
+     * Engine's power at all; porting the output-face restriction alone is a real, cheap, faithful piece of that
+     * behaviour without pulling in the full power-gated-extraction machinery for uncertain benefit.
+     */
+    @Override
+    public Set<Direction> filterFluidDestinations(Level level, BlockPos pipePos, Direction from, FluidResource fluid,
+            Set<Direction> candidates) {
+        if (currentDir == null || !candidates.contains(currentDir)) {
+            return candidates;
+        }
+        Set<Direction> allowed = EnumSet.noneOf(Direction.class);
+        allowed.addAll(candidates);
+        allowed.remove(currentDir);
+        return allowed;
+    }
+
+    /** Real {@code BCTransportConfig}: Wood's fluid pipe transfers {@code baseFlowRate}=10 mB/tick, delay 10 -
+     * overridden by {@link WoodDiamondBehaviour} with Diamond-Wood's own real (different) fluid rate. */
+    @Override
+    public int fluidTransferPerTick() {
+        return 10;
     }
 
     @Override
