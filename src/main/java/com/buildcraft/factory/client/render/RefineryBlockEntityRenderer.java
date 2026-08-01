@@ -94,6 +94,14 @@ public class RefineryBlockEntityRenderer implements BlockEntityRenderer<Refinery
         return new RefineryRenderState();
     }
 
+    /** Real perf fix (2026-07-31 FPS audit, same reasoning as the pipe renderers' own trim): a single-block-scale
+     * tank/piston animation isn't perceptible past normal range - the default 64-block view distance is wasted
+     * cost for every Refinery in a base beyond that. */
+    @Override
+    public int getViewDistance() {
+        return 32;
+    }
+
     @Override
     public void extractRenderState(RefineryBlockEntity blockEntity, RefineryRenderState state, float partialTicks, Vec3 cameraPosition,
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {

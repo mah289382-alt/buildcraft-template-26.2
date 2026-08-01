@@ -48,24 +48,43 @@ public class PipeBlockEntityRenderer implements BlockEntityRenderer<PipeBlockEnt
     public void extractRenderState(PipeBlockEntity blockEntity, PipeRenderState state, float partialTicks, Vec3 cameraPosition,
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {
         BlockEntityRenderer.super.extractRenderState(blockEntity, state, partialTicks, cameraPosition, breakProgress);
-        state.itemStates.clear();
         state.positions.clear();
         int seed = 0;
+        int index = 0;
         for (PipeBlockEntity.RenderItem item : blockEntity.getRenderItems(partialTicks)) {
-            ItemStackRenderState itemState = new ItemStackRenderState();
+            // Real perf fix (2026-07-31 FPS audit): reuse a pooled ItemStackRenderState instead of allocating a
+            // fresh one every frame for every travelling item in every visible pipe - see PipeRenderState's own
+            // javadoc for why this is safe (the class is explicitly designed for in-place reuse).
+            ItemStackRenderState itemState;
+            if (index < state.itemStates.size()) {
+                itemState = state.itemStates.get(index);
+            } else {
+                itemState = new ItemStackRenderState();
+                state.itemStates.add(itemState);
+            }
             // NONE, not GROUND: GROUND's baked display transform is for a dropped item sitting ON the ground
             // (bottom-anchored, with its own offset) - the original explicitly bypasses any such per-context
             // transform (it renders raw baked quads with no display-context translation at all) and does its
             // own centering manually instead (see the recenter below), which NONE matches most closely.
             itemModelResolver.updateForTopItem(itemState, item.stack(), ItemDisplayContext.NONE, blockEntity.getLevel(), null, seed++);
-            state.itemStates.add(itemState);
             state.positions.add(item.position());
+            index++;
         }
+        state.activeCount = index;
+    }
+
+    /** Real perf fix (2026-07-31 FPS audit, same reasoning as {@code FluidPipeBlockEntityRenderer}'s own trim):
+     * the default 64-block view distance is wasteful for a small in-pipe detail nobody can perceive at that
+     * range - and item pipes are typically the MOST numerous pipe tier in a real base, more so than fluid pipes,
+     * making this renderer's per-instance cost matter more in aggregate. */
+    @Override
+    public int getViewDistance() {
+        return 32;
     }
 
     @Override
     public void submit(PipeRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector, CameraRenderState camera) {
-        for (int i = 0; i < state.itemStates.size(); i++) {
+        for (int i = 0; i < state.activeCount; i++) {
             ItemStackRenderState itemState = state.itemStates.get(i);
             if (itemState.isEmpty()) {
                 continue;

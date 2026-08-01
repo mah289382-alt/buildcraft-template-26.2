@@ -1,7 +1,5 @@
 {
-  "itemGroup.buildcraft": "Example Mod Tab",
-  "block.buildcraft.example_block": "Example Block",
-  "item.buildcraft.example_item": "Example Item",
+  "itemGroup.buildcraft": "BuildCraft",
   "block.buildcraft.quarry": "Quarry",
   "block.buildcraft.frame": "Frame",
   "block.buildcraft.marker": "Land Marker",

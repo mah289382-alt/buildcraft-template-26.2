@@ -1,9 +1,11 @@
 package com.buildcraft.transport.blockentity;
 
 import java.util.ArrayList;
+import java.util.EnumMap;
 import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Supplier;
@@ -18,6 +20,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.DyeColor;
@@ -29,6 +32,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -88,6 +92,20 @@ public class PipeBlockEntity extends BlockEntity {
 
     private final PipeBehaviour behaviour;
     private final List<TravellingItem> items = new ArrayList<>();
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #onReachEnd} used to call the raw, uncached
+     * {@code level.getCapability(...)} every time a travelling item finishes a hop and exits into a non-pipe
+     * neighbour - see {@code FluidPipeBlockEntity}'s own equivalent field for the full reasoning (NeoForge's own
+     * {@link BlockCapabilityCache}, no caching in the raw call). One shared, per-direction cache. */
+    private final Map<Direction, BlockCapabilityCache<ResourceHandler<ItemResource>, Direction>> itemCapCache = new EnumMap<>(Direction.class);
+
+    private @Nullable BlockCapabilityCache<ResourceHandler<ItemResource>, Direction> itemCapCache(Level level, Direction dir) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+        return itemCapCache.computeIfAbsent(dir, d -> BlockCapabilityCache.create(Capabilities.Item.BLOCK, serverLevel, worldPosition.relative(d),
+                d.getOpposite(), () -> !isRemoved(), () -> {}));
+    }
     private int roundRobinCursor = 0;
 
     public PipeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, Supplier<PipeBehaviour> behaviourFactory) {
@@ -349,8 +367,8 @@ public class PipeBlockEntity extends BlockEntity {
             neighborPipe.acceptItem(item.stack, item.side.getOpposite(), item.colour);
             return true;
         }
-        ResourceHandler<ItemResource> handler =
-                level.getCapability(Capabilities.Item.BLOCK, neighborPos, item.side.getOpposite());
+        BlockCapabilityCache<ResourceHandler<ItemResource>, Direction> cache = itemCapCache(level, item.side);
+        ResourceHandler<ItemResource> handler = cache == null ? null : cache.getCapability();
         if (handler != null) {
             ItemResource resource = ItemResource.of(item.stack);
             int inserted;

@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "I": "minecraft:iron_ingot",
+    "G": "minecraft:cobblestone"
+  },
+  "pattern": [
+    "I I",
+    " G ",
+    " I "
+  ],
+  "result": { "id": "buildcraft:wrench" }
+}

@@ -44,7 +44,18 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(25)
 runs {
     // applies to all the run configs below
     configureEach {
-        // Recommended logging data for a userdev environment
+        // Real load-time fix (2026-07-30 perf audit): this was still the unmodified NeoForge MDK template
+        // default - 'debug' console level + the REGISTRIES marker, meaning every registry event (NeoForge's own
+        // large set of internal/vanilla-equivalent registrations, plus this mod's own ~50 items/blocks/block
+        // entities/menus/etc.) gets formatted and written as a verbose debug line to BOTH the console and the
+        // log file, during exactly the "NeoForge mod loading"/registry-init phase that's the longest visible
+        // portion of the loading screen. Genuinely useful when actively debugging a registration bug (that's
+        // what it's FOR - see the marker comments below, kept for reference), but pure overhead once the mod's
+        // registration is working and tested, which it now is. Raised to 'info' - still get real warnings/errors
+        // and this mod's own normal logging, just not a debug trace of every internal registry event. If a
+        // future registration bug needs the verbose trace back, flip this back to 'debug' (the REGISTRIES/SCAN/
+        // REGISTRYDUMP markers below only matter when the level is low enough to let debug/trace through).
+        //
         // The markers can be added/remove as needed separated by commas.
         // "SCAN": For mods scan.
         // "REGISTRIES": For firing of registry events.
@@ -54,7 +65,23 @@ runs {
         // Recommended logging level for the console
         // You can set various levels here.
         // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
-        systemProperty 'forge.logging.console.level', 'debug'
+        systemProperty 'forge.logging.console.level', 'info'
+
+        // Real load-time fix #2 (2026-07-30 perf audit, continued): the run's actual JVM (confirmed via
+        // .idea/workspace.xml VM_PARAMETERS) had no explicit heap sizing at all, so it starts from HotSpot's
+        // tiny default initial heap (~1/64 of physical RAM) and grows/resizes it live during the registry/mod-
+        // loading phase's heavy burst allocation - each resize is a real, avoidable stop-the-world-adjacent cost
+        // landing in exactly the phase we're trying to shrink. Pinning Xms==a sane working size avoids that churn.
+        // Xmx raised to 8G (was 4G) - 4G caused visibly worse in-game FPS, almost certainly heavier GC pressure
+        // once actually playing (vs. just loading), not just a load-time concern.
+        //
+        // REVERTED same day: also tried -XX:TieredStopAtLevel=1 (disables the C2 JIT tier) to cut startup CPU
+        // contention. Confirmed via user report to cause a real, noticeable in-game FPS drop - C2 is what
+        // actually optimizes hot game-loop/rendering code once warmed up, so skipping it trades away steady-state
+        // FPS for faster startup, the wrong trade given max FPS is an explicit goal here. Do not re-add without
+        // re-checking this trade-off.
+        jvmArgument '-Xms2G'
+        jvmArgument '-Xmx8G'
 
         workingDirectory project.layout.projectDirectory.dir('run').dir(name)
 
@@ -121,6 +148,13 @@ dependencies {
 
     // Example project dependency using a sister or child project:
     // implementation project(":myproject")
+
+    // ModernFix-mVUS was tried here (2026-07-30) and REMOVED the same day: real, measured regression, not a
+    // startup win. The resource/model-reload phase (normally ~4s after the pipe blockstate fix) jumped to 108s,
+    // and the FML mod-loading phase also got worse (38.3s vs. the usual ~28-34s) - most likely a compat issue
+    // with this project's custom `CustomBlockModelDefinition`-based pipe models (a very new NeoForge 26.2 API;
+    // this is an early/unofficial fork built ahead of official 26.2 support, so edge cases with new client
+    // model APIs are plausible). Do not re-add without confirming this incompatibility is resolved upstream.
 
     // For more info:
     // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html

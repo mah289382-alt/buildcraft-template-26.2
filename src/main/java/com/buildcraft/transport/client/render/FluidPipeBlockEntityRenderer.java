@@ -143,6 +143,17 @@ public class FluidPipeBlockEntityRenderer implements BlockEntityRenderer<FluidPi
         return new FluidPipeRenderState();
     }
 
+    /** Real perf fix (FPS audit, 2026-07-30): the default {@code getViewDistance()} is 64 blocks - reasonable
+     * for large/important renderers (the Quarry's laser+gantry, say), but wasteful for a small internal fill
+     * detail nobody can actually perceive at that range, especially in a base with a large fluid-pipe network
+     * (this renderer manually builds up to ~7 boxes/frame per pipe with no caching - see class javadoc - so
+     * every pipe beyond visual relevance is pure wasted CPU). Halved to 32, comfortably past normal render-
+     * distance-limited gameplay visibility of a detail this small. */
+    @Override
+    public int getViewDistance() {
+        return 32;
+    }
+
     @Override
     public void extractRenderState(FluidPipeBlockEntity blockEntity, FluidPipeRenderState state, float partialTicks, Vec3 cameraPosition,
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {

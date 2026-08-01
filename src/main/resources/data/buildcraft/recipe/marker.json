@@ -1,0 +1,12 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "l": "minecraft:gold_ingot",
+    "r": "minecraft:redstone_torch"
+  },
+  "pattern": [
+    "l",
+    "r"
+  ],
+  "result": { "id": "buildcraft:marker" }
+}

@@ -56,6 +56,14 @@ public class EngineBlockEntityRenderer implements BlockEntityRenderer<EngineBloc
         return new EngineRenderState();
     }
 
+    /** Real perf fix (2026-07-31 FPS audit, same reasoning as the pipe renderers' own trim): a single 1x1x1
+     * piston/trunk animation isn't perceptible past normal range - the default 64-block view distance is wasted
+     * cost for every engine in a base beyond that. */
+    @Override
+    public int getViewDistance() {
+        return 32;
+    }
+
     @Override
     public void extractRenderState(EngineBlockEntity blockEntity, EngineRenderState state, float partialTicks, Vec3 cameraPosition,
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {

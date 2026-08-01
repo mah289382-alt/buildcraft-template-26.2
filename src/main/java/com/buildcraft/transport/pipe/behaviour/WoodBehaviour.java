@@ -1,15 +1,19 @@
 package com.buildcraft.transport.pipe.behaviour;
 
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.DyeColor;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
@@ -58,6 +62,14 @@ public class WoodBehaviour implements PipeBehaviour {
     private @Nullable Level cachedLevel;
     private @Nullable BlockPos cachedPos;
     private @Nullable PipeBlockEntity cachedPipe;
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@code DemandEnergyHandler.insert} used to call the raw,
+     * uncached {@code level.getCapability(...)} every time an Engine pushes power in (potentially every server
+     * tick this pipe is actively charged) - see {@code FluidPipeBlockEntity}'s own equivalent field for the full
+     * reasoning (NeoForge's own {@link BlockCapabilityCache}, no caching in the raw call). Keyed per direction
+     * (not a single field) so a wrench-changed {@link #currentDir} naturally starts using a different,
+     * independently-correct cache entry. */
+    private final Map<Direction, BlockCapabilityCache<ResourceHandler<ItemResource>, Direction>> itemCapCache = new EnumMap<>(Direction.class);
 
     @Override
     public boolean connectsToContainers() {
@@ -250,9 +262,15 @@ public class WoodBehaviour implements PipeBehaviour {
             if (maxItems <= 0 || !isTileFace(level, pipePos, currentDir)) {
                 return 0;
             }
-            BlockPos neighborPos = pipePos.relative(currentDir);
-            ResourceHandler<ItemResource> handler =
-                    level.getCapability(Capabilities.Item.BLOCK, neighborPos, currentDir.getOpposite());
+            ResourceHandler<ItemResource> handler = null;
+            if (level instanceof ServerLevel serverLevel) {
+                Direction dir = currentDir;
+                BlockPos fixedPipePos = pipePos;
+                BlockCapabilityCache<ResourceHandler<ItemResource>, Direction> cache = itemCapCache.computeIfAbsent(dir,
+                        d -> BlockCapabilityCache.create(Capabilities.Item.BLOCK, serverLevel, fixedPipePos.relative(d),
+                                d.getOpposite(), () -> !pipe.isRemoved(), () -> {}));
+                handler = cache.getCapability();
+            }
             if (handler == null) {
                 return 0;
             }

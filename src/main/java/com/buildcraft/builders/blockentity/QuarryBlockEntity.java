@@ -4,8 +4,10 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import net.minecraft.core.BlockPos;
@@ -30,6 +32,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
@@ -75,6 +78,12 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
     private boolean chunksForced = false;
     // Every position where this Quarry has placed a Frame block, so they can be cleaned up if the Quarry is broken.
     private final Set<BlockPos> placedFramePositions = new HashSet<>();
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #routeDrop} used to call the raw, uncached
+     * {@code level.getCapability(...)} for up to 6 directions per mined-block drop - see
+     * {@code FluidPipeBlockEntity}'s own equivalent field for the full reasoning (NeoForge's own
+     * {@link BlockCapabilityCache}, no caching in the raw call). One shared, per-direction cache. */
+    private final Map<Direction, BlockCapabilityCache<ResourceHandler<ItemResource>, Direction>> itemCapCache = new EnumMap<>(Direction.class);
 
     // Real mining state, mirroring TileQuarry's boxIterator/drillPos/currentTask trio.
     private @Nullable QuarryBoxIterator boxIterator;
@@ -567,8 +576,10 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
             if (stack.isEmpty()) {
                 return;
             }
-            BlockPos neighborPos = worldPosition.relative(dir);
-            ResourceHandler<ItemResource> handler = level.getCapability(Capabilities.Item.BLOCK, neighborPos, dir.getOpposite());
+            BlockCapabilityCache<ResourceHandler<ItemResource>, Direction> cache = itemCapCache.computeIfAbsent(dir,
+                    d -> BlockCapabilityCache.create(Capabilities.Item.BLOCK, level, worldPosition.relative(d), d.getOpposite(),
+                            () -> !isRemoved(), () -> {}));
+            ResourceHandler<ItemResource> handler = cache.getCapability();
             if (handler == null) {
                 continue;
             }

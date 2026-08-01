@@ -1,5 +1,8 @@
 package com.buildcraft.energy.blockentity;
 
+import java.util.EnumMap;
+import java.util.Map;
+
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
@@ -9,6 +12,7 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -16,6 +20,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.energy.EnergyHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
@@ -60,6 +65,16 @@ public abstract class EngineBlockEntity extends BlockEntity {
     protected long power = 0;
     protected float progress = 0f;
     protected boolean redstonePowered = false;
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #pushPower} runs every server tick this engine has power
+     * to send, and the raw {@code level.getCapability(...)} it used to call directly re-walks the target block's
+     * whole provider list AND re-invokes the provider (allocating a fresh handler) on EVERY call - confirmed via
+     * NeoForge's own {@code BlockCapability.getCapability} source, which does no caching itself.
+     * {@link BlockCapabilityCache} is NeoForge's own purpose-built fix for exactly this (its own javadoc: "a
+     * cache for block capabilities, to be used to track capabilities at a specific position"). Keyed per
+     * {@code Direction} (not a single field) so wrench-rotating {@code FACING} naturally starts using a
+     * different, independently-correct cache entry instead of needing explicit invalidation. */
+    private final Map<Direction, BlockCapabilityCache<EnergyHandler, Direction>> powerCapCache = new EnumMap<>(Direction.class);
 
     protected EngineBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state) {
         super(type, pos, state);
@@ -187,8 +202,13 @@ public abstract class EngineBlockEntity extends BlockEntity {
             return;
         }
         Direction facing = state.getValue(BlockStateProperties.FACING);
-        BlockPos targetPos = pos.relative(facing);
-        EnergyHandler receiver = level.getCapability(Capabilities.Energy.BLOCK, targetPos, facing.getOpposite());
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        BlockCapabilityCache<EnergyHandler, Direction> cache = powerCapCache.computeIfAbsent(facing,
+                dir -> BlockCapabilityCache.create(Capabilities.Energy.BLOCK, serverLevel, pos.relative(dir), dir.getOpposite(),
+                        () -> !isRemoved(), () -> {}));
+        EnergyHandler receiver = cache.getCapability();
         if (receiver == null) {
             return;
         }

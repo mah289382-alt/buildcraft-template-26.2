@@ -16,7 +16,9 @@ import net.neoforged.fml.event.lifecycle.FMLClientSetupEvent;
 import net.minecraft.client.renderer.block.FluidModel;
 import net.minecraft.client.resources.model.sprite.Material;
 import net.minecraft.resources.Identifier;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.EntityRenderersEvent;
+import net.neoforged.neoforge.client.event.RegisterBlockStateModels;
 import net.neoforged.neoforge.client.event.RegisterFluidModelsEvent;
 import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 import net.neoforged.neoforge.client.event.RegisterRenderPipelinesEvent;
@@ -115,6 +117,19 @@ public class BuildCraftClient {
                 context -> new MinerBlockEntityRenderer(context, Identifier.fromNamespaceAndPath(BuildCraft.MODID, "textures/block/pump_tube.png"), false));
     }
 
+    /**
+     * Real perf/load-time fix (FPS/load-time audit, 2026-07-30, user: "make it like giga optimized") - registers
+     * {@link com.buildcraft.transport.client.model.PipeModelDefinition}'s codec under {@code buildcraft:pipe},
+     * matching what each pipe tier's blockstate JSON now references via {@code "neoforge:definition_type"}
+     * instead of a {@code multipart} block - see that class's own javadoc for the full mechanism/reasoning.
+     * Proof of concept: only {@code pipe_cobblestone}'s blockstate JSON has been converted so far.
+     */
+    @SubscribeEvent
+    static void registerBlockStateModels(RegisterBlockStateModels event) {
+        event.registerDefinition(Identifier.fromNamespaceAndPath(BuildCraft.MODID, "pipe"),
+                com.buildcraft.transport.client.model.PipeModelDefinition.CODEC);
+    }
+
     // A custom "opaque + no directional shading" pipeline for the Quarry's laser geometry - see
     // QuarryBlockEntityRenderer.LASER_UNLIT_CUTOUT_PIPELINE's javadoc for why the built-in render types don't work.
     @SubscribeEvent
@@ -181,6 +196,23 @@ public class BuildCraftClient {
                         new Material(Identifier.fromNamespaceAndPath(BuildCraft.MODID, "block/fuel_flow")),
                         null, null),
                 FactoryFluids.FUEL_SOURCE, FactoryFluids.FUEL_FLOWING);
+    }
+
+    /**
+     * Temporary diagnostic instrumentation (2026-07-30 FPS/load-time audit) - logs the live FPS counter
+     * ({@link Minecraft#getFps()}, the same value the F3 debug screen reads) once every 100 client ticks (~5s at
+     * 20 TPS, via {@link ClientTickEvent.Post}) so real, in-game FPS numbers land in {@code latest.log} without
+     * needing to eyeball the F3 screen or take a screenshot. Remove once no longer needed, per this project's
+     * established convention for temporary logging (see {@code FluidPipeBlockEntity}'s {@code DEBUG_LOG}).
+     */
+    private static int fpsLogTickCounter = 0;
+
+    @SubscribeEvent
+    static void onClientTick(ClientTickEvent.Post event) {
+        if (++fpsLogTickCounter >= 100) {
+            fpsLogTickCounter = 0;
+            BuildCraft.LOGGER.info("[FPS] {}", Minecraft.getInstance().getFps());
+        }
     }
 
     @SubscribeEvent

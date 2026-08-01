@@ -88,6 +88,15 @@ public class TankBlockEntityRenderer implements BlockEntityRenderer<TankBlockEnt
         return new TankRenderState();
     }
 
+    /** Real perf fix (2026-07-31 FPS audit, same reasoning as the pipe renderers' own trim): the fluid-level
+     * window detail isn't perceptible past normal range - the default 64-block view distance is wasted cost for
+     * every Tank in a base beyond that (including tall vertical stacks - still a small window detail per block,
+     * not a large showpiece feature). */
+    @Override
+    public int getViewDistance() {
+        return 32;
+    }
+
     @Override
     public void extractRenderState(TankBlockEntity blockEntity, TankRenderState state, float partialTicks, Vec3 cameraPosition,
             ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress) {

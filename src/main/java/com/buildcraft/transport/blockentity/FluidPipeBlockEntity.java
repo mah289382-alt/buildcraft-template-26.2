@@ -17,12 +17,14 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.fluids.FluidType;
 import net.neoforged.neoforge.transfer.ResourceHandler;
@@ -85,6 +87,22 @@ public class FluidPipeBlockEntity extends BlockEntity {
     private final Section centerSection = new Section(null);
     private @Nullable FluidResource currentFluid;
     private int currentDelay = 1;
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #pushToNeighbor} and {@link #pullIn} both query the
+     * SAME (neighbour position, context) pair per direction, every server tick this pipe has an active face on
+     * that side - the raw {@code level.getCapability(...)} they used to call directly re-walks the whole
+     * provider list and re-allocates a fresh handler on EVERY call (confirmed via NeoForge's own
+     * {@code BlockCapability.getCapability} source - no caching there at all). One shared, per-direction
+     * {@link BlockCapabilityCache} serves both call sites. */
+    private final Map<Direction, BlockCapabilityCache<ResourceHandler<FluidResource>, Direction>> fluidCapCache = new EnumMap<>(Direction.class);
+
+    private @Nullable BlockCapabilityCache<ResourceHandler<FluidResource>, Direction> fluidCapCache(Level level, BlockPos pos, Direction dir) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return null;
+        }
+        return fluidCapCache.computeIfAbsent(dir, d -> BlockCapabilityCache.create(Capabilities.Fluid.BLOCK, serverLevel, pos.relative(d),
+                d.getOpposite(), () -> !isRemoved(), () -> {}));
+    }
 
     public FluidPipeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, Supplier<PipeBehaviour> behaviourFactory) {
         super(type, pos, state);
@@ -284,13 +302,16 @@ public class FluidPipeBlockEntity extends BlockEntity {
     // established precedent for exactly this situation (see [[engines-status]] Round 2 item F). Already did its
     // job once (2026-07-26): real log data confirmed section amounts freeze at steady-state, which directly
     // informed the travelling-marker fix in FluidPipeBlockEntityRenderer.
-    // Flipped back ON (2026-07-29) - user reports the animation "gets glitchy" the longer a run or the more
-    // complex a fork gets, and flickers specifically at a terminal pipe, after several rounds of code-reading-only
-    // fixes to FluidPipeBlockEntityRenderer's shared-timeline design didn't fully resolve it. Now also logs
-    // flowStartTick/lastKnownSign (the renderer's own timing anchors, not logged by the previous round that only
-    // needed amt/inc/dir) so a real per-tick trace can show whether flowStartTick is jumping/drifting for
-    // downstream pipes in a long chain, or whether a terminal pipe's sign/amount is genuinely oscillating.
-    private static final boolean DEBUG_LOG = true;
+    // Flipped ON again (2026-07-29), did its job a second time: real log data caught the sign-blind recursion bug
+    // in resolveFlowStartTick/earliestFaceFlowStartTick (a face's own flowStart climbing 40 ticks EVERY tick,
+    // never settling) and confirmed a fork branch's real per-tick amount genuinely oscillates near 0 (informing
+    // the renderStaticCentre "thin square" fix). Flipped back OFF (2026-07-30) once the user confirmed the whole
+    // saga was resolved.
+    // Flipped ON a third time (2026-07-31) chasing a "thin blue square" report ("adding random pipes" onto an
+    // already-flowing network) - flipped back OFF the same day: on retest the user couldn't reproduce it anymore
+    // ("the thin square is gone"), so there was no real data to read. Flip back to true again if it resurfaces
+    // with an actual reproduction.
+    private static final boolean DEBUG_LOG = false;
 
     private void logSectionState(BlockPos pos) {
         StringBuilder sb = new StringBuilder();
@@ -361,8 +382,8 @@ public class FluidPipeBlockEntity extends BlockEntity {
     }
 
     private int pushToNeighbor(Level level, BlockPos pos, Direction dir, int amount) {
-        BlockPos neighborPos = pos.relative(dir);
-        ResourceHandler<FluidResource> handler = level.getCapability(Capabilities.Fluid.BLOCK, neighborPos, dir.getOpposite());
+        BlockCapabilityCache<ResourceHandler<FluidResource>, Direction> cache = fluidCapCache(level, pos, dir);
+        ResourceHandler<FluidResource> handler = cache == null ? null : cache.getCapability();
         if (handler == null) {
             return 0;
         }
@@ -536,7 +557,8 @@ public class FluidPipeBlockEntity extends BlockEntity {
             if (!section.canInput()) {
                 continue;
             }
-            ResourceHandler<FluidResource> handler = level.getCapability(Capabilities.Fluid.BLOCK, neighborPos, dir.getOpposite());
+            BlockCapabilityCache<ResourceHandler<FluidResource>, Direction> cache = fluidCapCache(level, pos, dir);
+            ResourceHandler<FluidResource> handler = cache == null ? null : cache.getCapability();
             if (handler == null) {
                 continue;
             }
@@ -673,6 +695,23 @@ public class FluidPipeBlockEntity extends BlockEntity {
      * genuine input just because of a one-tick live gap" reason the renderer's own gates were switched to sticky
      * signals earlier this session) - a face can only ever be considered a candidate "where did this come from"
      * source if it's actually known to be an input, never an output or neutral face.
+     */
+    /**
+     * REVERTED (2026-07-31): a memoized-cache version of this method was tried here (2026-07-30 FPS/TPS audit) to
+     * fix the O(N^2) per-tick cost noted below, but caused a real, user-reported regression ("water starts moving
+     * from the end backward to the start" when adding pipes on corners). Root cause of why caching was unsound,
+     * missed during design: {@link #propagateFlowAnchors} runs once per pipe per tick and MUTATES that pipe's own
+     * {@code Section.flowStartTick} as it runs - block entities tick in level-iteration order, not network order,
+     * so a pipe's walk reaching a not-yet-ticked-this-tick neighbour legitimately reads that neighbour's STALE
+     * (last-tick) value; without caching, every later caller re-reads fresh state at the moment of ITS OWN call,
+     * so updates naturally ripple through the network within a tick. A cache freezes the FIRST-computed value for
+     * the whole tick, so any pipe resolving through that neighbour AFTER the cache was populated - even after the
+     * neighbour has since updated - gets stale data. The javadoc phrase that motivated the cache ("safe to call
+     * from anywhere, any number of times, in any order") is true for a single top-level call's result given a
+     * fixed snapshot of world state, but does NOT mean the same call at two different points in an actively-
+     * mutating tick returns the same answer - caching conflated those two different meanings. Do not re-add
+     * memoization here without a genuinely different approach (e.g. a single topologically-ordered pass computed
+     * once per tick from a fixed point, not lazy per-call memoization interleaved with mutation).
      */
     private OptionalLong resolveFlowStartTick(Set<BlockPos> visited) {
         if (!visited.add(worldPosition)) {

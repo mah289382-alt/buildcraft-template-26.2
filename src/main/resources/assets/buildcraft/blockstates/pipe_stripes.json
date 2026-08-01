@@ -1,17 +1,4 @@
 {
-    "multipart": [
-        { "apply": { "model": "buildcraft:block/pipe_stripes" } },
-        { "when": { "connected_up": true, "extended_up": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_up" } },
-        { "when": { "connected_up": true, "extended_up": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_up_extended" } },
-        { "when": { "connected_down": true, "extended_down": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_down" } },
-        { "when": { "connected_down": true, "extended_down": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_down_extended" } },
-        { "when": { "connected_north": true, "extended_north": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_north" } },
-        { "when": { "connected_north": true, "extended_north": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_north_extended" } },
-        { "when": { "connected_south": true, "extended_south": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_south" } },
-        { "when": { "connected_south": true, "extended_south": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_south_extended" } },
-        { "when": { "connected_west": true, "extended_west": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_west" } },
-        { "when": { "connected_west": true, "extended_west": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_west_extended" } },
-        { "when": { "connected_east": true, "extended_east": false }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_east" } },
-        { "when": { "connected_east": true, "extended_east": true }, "apply": { "model": "buildcraft:block/pipe_stripes_connect_east_extended" } }
-    ]
+    "neoforge:definition_type": "buildcraft:pipe",
+    "material": "stripes"
 }

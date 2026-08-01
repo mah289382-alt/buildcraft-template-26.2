@@ -1,6 +1,8 @@
 package com.buildcraft.factory.blockentity;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -10,6 +12,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.material.FluidState;
+import net.neoforged.neoforge.capabilities.BlockCapabilityCache;
 import net.neoforged.neoforge.capabilities.Capabilities;
 import net.neoforged.neoforge.transfer.ResourceHandler;
 import net.neoforged.neoforge.transfer.item.ItemResource;
@@ -45,6 +48,12 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
         super(FactoryContent.MINING_WELL_BLOCK_ENTITY.get(), pos, state,
                 Config.MINING_WELL_ENERGY_CAPACITY.get(), Config.MINING_WELL_MAX_FE_PER_TICK.get());
     }
+
+    /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #routeDrop} used to call the raw, uncached
+     * {@code level.getCapability(...)} for up to 6 directions per mined-block drop - see
+     * {@code FluidPipeBlockEntity}'s own equivalent field for the full reasoning (NeoForge's own
+     * {@link BlockCapabilityCache}, no caching in the raw call). One shared, per-direction cache. */
+    private final Map<Direction, BlockCapabilityCache<ResourceHandler<ItemResource>, Direction>> itemCapCache = new EnumMap<>(Direction.class);
 
     @Override
     protected void mine(Level level, BlockPos pos) {
@@ -134,8 +143,10 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
             if (stack.isEmpty()) {
                 return;
             }
-            BlockPos neighborPos = worldPosition.relative(dir);
-            ResourceHandler<ItemResource> handler = level.getCapability(Capabilities.Item.BLOCK, neighborPos, dir.getOpposite());
+            BlockCapabilityCache<ResourceHandler<ItemResource>, Direction> cache = itemCapCache.computeIfAbsent(dir,
+                    d -> BlockCapabilityCache.create(Capabilities.Item.BLOCK, level, worldPosition.relative(d), d.getOpposite(),
+                            () -> !isRemoved(), () -> {}));
+            ResourceHandler<ItemResource> handler = cache.getCapability();
             if (handler == null) {
                 continue;
             }
