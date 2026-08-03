@@ -79,8 +79,16 @@ public class RefineryBlock extends Block implements EntityBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        if (level.getBlockEntity(pos) instanceof MenuProvider provider && player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.openMenu(provider, pos);
+        // Real dupe-bug shape (same category as useItemOn's below, and already fixed once for PipeBlock/
+        // FluidPipeBlock's own useWithoutItem): "instanceof ServerPlayer" is false on the client (a different
+        // Player subclass), so gating SUCCESS behind it made the client-side prediction disagree with the
+        // server - the client fell through to the held item's own placement logic (e.g. a pipe getting
+        // ghost-placed) since ITS copy of this method returned PASS. Whether a menu exists here is identical
+        // info on both sides; only the actual openMenu() call needs to be server-only.
+        if (level.getBlockEntity(pos) instanceof MenuProvider provider) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(provider, pos);
+            }
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;

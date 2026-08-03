@@ -1,10 +1,10 @@
 {
   "type": "minecraft:crafting_shaped",
   "key": {
-    "i": "minecraft:iron_ingot",
+    "i": "buildcraft:gear_iron",
     "r": "minecraft:redstone",
-    "g": "minecraft:gold_ingot",
-    "d": "minecraft:diamond",
+    "g": "buildcraft:gear_gold",
+    "d": "buildcraft:gear_diamond",
     "p": "minecraft:diamond_pickaxe"
   },
   "pattern": [

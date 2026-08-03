@@ -3,7 +3,7 @@
   "key": {
     "w": "minecraft:cobblestone",
     "g": "minecraft:glass",
-    "s": "minecraft:flint",
+    "s": "buildcraft:gear_stone",
     "p": "minecraft:piston"
   },
   "pattern": [

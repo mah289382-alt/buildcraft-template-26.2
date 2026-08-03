@@ -3,12 +3,13 @@
   "key": {
     "i": "minecraft:iron_ingot",
     "r": "minecraft:redstone",
+    "g": "buildcraft:gear_iron",
     "t": "buildcraft:tank",
     "b": "minecraft:bucket"
   },
   "pattern": [
     "iri",
-    "iii",
+    "igi",
     "tbt"
   ],
   "result": { "id": "buildcraft:pump" }

@@ -14,15 +14,18 @@ import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
 
 import com.buildcraft.BuildCraft;
+import com.buildcraft.factory.block.AutoWorkbenchBlock;
 import com.buildcraft.factory.block.MiningWellBlock;
 import com.buildcraft.factory.block.PumpBlock;
 import com.buildcraft.factory.block.RefineryBlock;
 import com.buildcraft.factory.block.TankBlock;
 import com.buildcraft.factory.block.TubeBlock;
+import com.buildcraft.factory.blockentity.AutoWorkbenchBlockEntity;
 import com.buildcraft.factory.blockentity.MiningWellBlockEntity;
 import com.buildcraft.factory.blockentity.PumpBlockEntity;
 import com.buildcraft.factory.blockentity.RefineryBlockEntity;
 import com.buildcraft.factory.blockentity.TankBlockEntity;
+import com.buildcraft.factory.menu.AutoWorkbenchMenu;
 import com.buildcraft.factory.menu.RefineryMenu;
 
 /** Registers the Refinery, Tank, Mining Well, and Pump blocks/items/block-entities/menus - see
@@ -90,6 +93,19 @@ public final class FactoryContent {
     public static final DeferredBlock<TubeBlock> PUMP_TUBE_BLOCK = BLOCKS.registerBlock("pump_tube",
             TubeBlock::new,
             () -> BlockBehaviour.Properties.of().mapColor(MapColor.METAL).strength(-1.0F, 3_600_000.0F).noOcclusion().noLootTable());
+
+    public static final DeferredBlock<AutoWorkbenchBlock> AUTO_WORKBENCH_BLOCK = BLOCKS.registerBlock("auto_workbench",
+            AutoWorkbenchBlock::new,
+            () -> BlockBehaviour.Properties.of().mapColor(MapColor.WOOD).strength(2.5F));
+    public static final DeferredItem<BlockItem> AUTO_WORKBENCH_ITEM =
+            ITEMS.registerSimpleBlockItem("auto_workbench", AUTO_WORKBENCH_BLOCK);
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<AutoWorkbenchBlockEntity>> AUTO_WORKBENCH_BLOCK_ENTITY =
+            BLOCK_ENTITY_TYPES.register("auto_workbench", () -> new BlockEntityType<>(
+                    AutoWorkbenchBlockEntity::new, AUTO_WORKBENCH_BLOCK.get()));
+
+    public static final DeferredHolder<MenuType<?>, MenuType<AutoWorkbenchMenu>> AUTO_WORKBENCH_MENU =
+            MENUS.register("auto_workbench", () -> IMenuTypeExtension.create((windowId, inv, buf) ->
+                    new AutoWorkbenchMenu(FactoryContent.AUTO_WORKBENCH_MENU.get(), windowId, inv, null)));
 
     private FactoryContent() {}
 }

@@ -3,11 +3,12 @@
   "key": {
     "i": "minecraft:iron_ingot",
     "r": "minecraft:redstone",
+    "g": "buildcraft:gear_iron",
     "p": "minecraft:iron_pickaxe"
   },
   "pattern": [
     "iri",
-    "iii",
+    "igi",
     "ipi"
   ],
   "result": { "id": "buildcraft:mining_well" }

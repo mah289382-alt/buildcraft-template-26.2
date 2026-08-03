@@ -2,7 +2,7 @@
   "type": "minecraft:crafting_shaped",
   "key": {
     "I": "minecraft:iron_ingot",
-    "G": "minecraft:cobblestone"
+    "G": "buildcraft:gear_stone"
   },
   "pattern": [
     "I I",

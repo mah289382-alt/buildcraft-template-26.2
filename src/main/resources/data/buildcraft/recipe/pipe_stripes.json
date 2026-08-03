@@ -1,6 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
-  "key": { "l": "minecraft:gold_ingot", "g": "minecraft:glass", "r": "minecraft:gold_ingot" },
+  "key": { "l": "buildcraft:gear_gold", "g": "minecraft:glass", "r": "buildcraft:gear_gold" },
   "pattern": [ "lgr" ],
   "result": { "id": "buildcraft:pipe_stripes", "count": 8 }
 }

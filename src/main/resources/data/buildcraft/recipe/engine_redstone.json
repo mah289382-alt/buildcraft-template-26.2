@@ -3,7 +3,7 @@
   "key": {
     "w": "#minecraft:planks",
     "g": "minecraft:glass",
-    "s": "minecraft:stick",
+    "s": "buildcraft:gear_wood",
     "p": "minecraft:piston"
   },
   "pattern": [

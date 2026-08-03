@@ -35,6 +35,7 @@ import com.buildcraft.energy.client.menu.StirlingEngineScreen;
 import com.buildcraft.energy.client.render.EngineBlockEntityRenderer;
 import com.buildcraft.factory.FactoryContent;
 import com.buildcraft.factory.FactoryFluids;
+import com.buildcraft.factory.client.menu.AutoWorkbenchScreen;
 import com.buildcraft.factory.client.menu.RefineryScreen;
 import com.buildcraft.factory.client.render.MinerBlockEntityRenderer;
 import com.buildcraft.factory.client.render.RefineryBlockEntityRenderer;
@@ -223,5 +224,6 @@ public class BuildCraftClient {
         event.register(EnergyContent.STIRLING_ENGINE_MENU.get(), StirlingEngineScreen::new);
         event.register(EnergyContent.COMBUSTION_ENGINE_MENU.get(), CombustionEngineScreen::new);
         event.register(FactoryContent.REFINERY_MENU.get(), RefineryScreen::new);
+        event.register(FactoryContent.AUTO_WORKBENCH_MENU.get(), AutoWorkbenchScreen::new);
     }
 }

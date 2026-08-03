@@ -343,6 +343,32 @@ public class Config {
                     + "at all - with no power (or an empty buffer), the shaft simply doesn't move.")
             .defineInRange("minerShaftEnergyPerTick", 20, 0, Integer.MAX_VALUE);
 
+    // Real source (TileAutoWorkbenchBase): POWER_GEN_PASSIVE = MjAPI.MJ / 5 per tick (a slow, unpowered
+    // self-charge rate - "it takes 10 seconds to craft an item" with nothing feeding it), POWER_REQUIRED =
+    // PASSIVE * 200 (10 real seconds' worth of passive charge), POWER_LOST = PASSIVE * 10 (decays 10x faster
+    // than it passively charges whenever it currently can't craft - missing materials, no matching recipe, or
+    // a full output slot). These FE numbers preserve that exact 1:200:10 ratio rather than the literal MJ
+    // values (same category of deviation as every other FE substitution in this port).
+    public static final ModConfigSpec.IntValue AUTO_WORKBENCH_PASSIVE_FE_PER_TICK = BUILDER
+            .comment("FE the Auto Workbench self-generates per tick with no external power at all, but ONLY "
+                    + "while it actually has a valid recipe+materials+room to craft (source: MJ/5).")
+            .defineInRange("autoWorkbenchPassiveFePerTick", 5, 1, Integer.MAX_VALUE);
+
+    public static final ModConfigSpec.IntValue AUTO_WORKBENCH_ENERGY_REQUIRED = BUILDER
+            .comment("Total FE needed to craft one item (source: passive rate * 200, i.e. 10 seconds unpowered).")
+            .defineInRange("autoWorkbenchEnergyRequired", 1_000, 10, Integer.MAX_VALUE);
+
+    public static final ModConfigSpec.IntValue AUTO_WORKBENCH_ENERGY_LOST_PER_TICK = BUILDER
+            .comment("FE drained from the stored buffer per tick whenever it currently CAN'T craft (source: "
+                    + "passive rate * 10).")
+            .defineInRange("autoWorkbenchEnergyLostPerTick", 50, 1, Integer.MAX_VALUE);
+
+    public static final ModConfigSpec.IntValue AUTO_WORKBENCH_MAX_FE_PER_TICK = BUILDER
+            .comment("The maximum FE an external source (e.g. an Engine) can push into the Auto Workbench per "
+                    + "tick - unlike the passive trickle above, external power fills the buffer unconditionally, "
+                    + "matching source's IMjRedstoneReceiver.receivePower not being gated by canCraft().")
+            .defineInRange("autoWorkbenchMaxFePerTick", 1_000, 1, Integer.MAX_VALUE);
+
     static {
         BUILDER.pop();
     }

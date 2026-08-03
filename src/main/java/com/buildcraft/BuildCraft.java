@@ -27,6 +27,7 @@ import net.neoforged.neoforge.common.world.chunk.RegisterTicketControllersEvent;
 
 import com.buildcraft.builders.BuildersContent;
 import com.buildcraft.builders.blockentity.QuarryBlockEntity;
+import com.buildcraft.core.CoreContent;
 import com.buildcraft.energy.EnergyContent;
 import com.buildcraft.factory.FactoryContent;
 import com.buildcraft.factory.FactoryFluids;
@@ -97,6 +98,12 @@ public class BuildCraft {
                 output.accept(TransportContent.PIPE_DIAMOND_FLUID_ITEM.get());
                 output.accept(FactoryContent.MINING_WELL_ITEM.get());
                 output.accept(FactoryContent.PUMP_ITEM.get());
+                output.accept(FactoryContent.AUTO_WORKBENCH_ITEM.get());
+                output.accept(CoreContent.GEAR_WOOD_ITEM.get());
+                output.accept(CoreContent.GEAR_STONE_ITEM.get());
+                output.accept(CoreContent.GEAR_IRON_ITEM.get());
+                output.accept(CoreContent.GEAR_GOLD_ITEM.get());
+                output.accept(CoreContent.GEAR_DIAMOND_ITEM.get());
             }).build());
 
     // The constructor for the mod class is the first code that is run when your mod is loaded.
@@ -111,6 +118,9 @@ public class BuildCraft {
         ITEMS.register(modEventBus);
         // Register the Deferred Register to the mod event bus so tabs get registered
         CREATIVE_MODE_TABS.register(modEventBus);
+
+        // Register the core module's content (Gears)
+        CoreContent.ITEMS.register(modEventBus);
 
         // Register the builders module's content (Quarry, Frame)
         BuildersContent.BLOCKS.register(modEventBus);
@@ -266,6 +276,15 @@ public class BuildCraft {
         // itself never actively pushes outward - see PumpBlockEntity's javadoc for why that's simpler here).
         event.registerBlockEntity(Capabilities.Fluid.BLOCK, FactoryContent.PUMP_BLOCK_ENTITY.get(),
                 (blockEntity, side) -> blockEntity.getFluidHandler());
+
+        // The Auto Workbench's FE buffer (an Engine can charge it directly, see AutoWorkbenchBlockEntity's
+        // javadoc for why external power isn't gated by canCraft() the way its own passive trickle is) and its
+        // combined materials-insert/result-extract item handler, so pipes/hoppers can feed ingredients in and
+        // pull finished items out through any side.
+        event.registerBlockEntity(Capabilities.Energy.BLOCK, FactoryContent.AUTO_WORKBENCH_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getEnergyHandler());
+        event.registerBlockEntity(Capabilities.Item.BLOCK, FactoryContent.AUTO_WORKBENCH_BLOCK_ENTITY.get(),
+                (blockEntity, side) -> blockEntity.getItemHandler());
     }
 
     private void registerPipeItemCapability(RegisterCapabilitiesEvent event,

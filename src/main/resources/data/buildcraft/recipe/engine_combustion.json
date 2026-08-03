@@ -3,7 +3,7 @@
   "key": {
     "w": "minecraft:iron_ingot",
     "g": "minecraft:glass",
-    "s": "minecraft:iron_nugget",
+    "s": "buildcraft:gear_iron",
     "p": "minecraft:piston"
   },
   "pattern": [

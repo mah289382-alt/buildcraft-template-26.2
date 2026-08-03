@@ -149,8 +149,14 @@ public class EngineBlock extends Block implements EntityBlock {
      */
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hitResult) {
-        if (level.getBlockEntity(pos) instanceof MenuProvider provider && player instanceof ServerPlayer serverPlayer) {
-            serverPlayer.openMenu(provider, pos);
+        // Same real dupe-bug shape as this class's own useItemOn (see its javadoc), just for menu-opening
+        // instead of bucket handling: "instanceof ServerPlayer" is false client-side, so gating SUCCESS behind
+        // it disagreed between client/server and let the client's held item fall through to its own placement
+        // logic. Whether a menu exists here is identical on both sides; only openMenu() itself is server-only.
+        if (level.getBlockEntity(pos) instanceof MenuProvider provider) {
+            if (player instanceof ServerPlayer serverPlayer) {
+                serverPlayer.openMenu(provider, pos);
+            }
             return InteractionResult.SUCCESS;
         }
         return InteractionResult.PASS;

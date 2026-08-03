@@ -1,0 +1,13 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "key": {
+    "i": "buildcraft:gear_gold",
+    "o": "minecraft:diamond"
+  },
+  "pattern": [
+    " o ",
+    "oio",
+    " o "
+  ],
+  "result": { "id": "buildcraft:gear_diamond" }
+}
