@@ -3,6 +3,7 @@ package com.buildcraft.transport.blockentity;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -114,6 +115,51 @@ public class FluidPipeBlockEntity extends BlockEntity {
 
     public PipeBehaviour getBehaviour() {
         return behaviour;
+    }
+
+    /** Real feature, not a source port - see {@code PipeBlockEntity}'s identical field for the full rationale
+     * (replaces source's standalone "Blocker" pluggable item, declined by user in favor of this). */
+    private final EnumSet<Direction> blockedFaces = EnumSet.noneOf(Direction.class);
+
+    public boolean isFaceBlocked(Direction dir) {
+        return blockedFaces.contains(dir);
+    }
+
+    /** Fluid-pipe equivalent of {@code PipeBlockEntity.toggleFaceBlocked}. */
+    public boolean toggleFaceBlocked(Direction dir) {
+        boolean nowBlocked = !blockedFaces.remove(dir);
+        if (nowBlocked) {
+            blockedFaces.add(dir);
+        }
+        setChanged();
+        if (level != null) {
+            FluidPipeBlock.refreshConnection(level, worldPosition, dir);
+        }
+        return nowBlocked;
+    }
+
+    /** Fluid-pipe equivalent of {@code PipeBlockEntity.cycleBlockedFace} - see that method's javadoc (container
+     * neighbors only, deliberately never another pipe). */
+    private int blockCycleIndex = 0;
+
+    public void cycleBlockedFace(Level level) {
+        Direction[] all = Direction.values();
+        for (int i = 0; i < all.length; i++) {
+            Direction candidate = all[(blockCycleIndex + i) % all.length];
+            if (hasContainerNeighbor(level, worldPosition, candidate)) {
+                blockCycleIndex = (blockCycleIndex + i + 1) % all.length;
+                toggleFaceBlocked(candidate);
+                return;
+            }
+        }
+    }
+
+    private static boolean hasContainerNeighbor(Level level, BlockPos pos, Direction dir) {
+        BlockPos neighborPos = pos.relative(dir);
+        if (level.getBlockEntity(neighborPos) instanceof FluidPipeBlockEntity) {
+            return false;
+        }
+        return level.getCapability(Capabilities.Fluid.BLOCK, neighborPos, dir.getOpposite()) != null;
     }
 
     public FluidResource getFluidResource() {
@@ -829,9 +875,11 @@ public class FluidPipeBlockEntity extends BlockEntity {
 
     private final class SidedFluidHandler implements ResourceHandler<FluidResource> {
         private final Section section;
+        private final @Nullable Direction side;
 
         SidedFluidHandler(@Nullable Direction side) {
             this.section = sectionFor(side);
+            this.side = side;
         }
 
         @Override
@@ -856,11 +904,17 @@ public class FluidPipeBlockEntity extends BlockEntity {
 
         @Override
         public boolean isValid(int index, FluidResource resource) {
+            if (side != null && isFaceBlocked(side)) {
+                return false;
+            }
             return currentFluid == null || currentFluid.equals(resource);
         }
 
         @Override
         public int insert(int index, FluidResource resource, int amount, TransactionContext transaction) {
+            if (side != null && isFaceBlocked(side)) {
+                return 0;
+            }
             return doFill(resource, amount, transaction);
         }
 
@@ -914,6 +968,11 @@ public class FluidPipeBlockEntity extends BlockEntity {
             faceSections.get(dir).save(output.child(dir.getSerializedName()));
         }
         behaviour.save(output.child("behaviour"));
+        ValueOutput.TypedOutputList<Direction> blocked = output.list("blockedFaces", Direction.CODEC);
+        for (Direction dir : blockedFaces) {
+            blocked.add(dir);
+        }
+        output.putInt("blockCycleIndex", blockCycleIndex);
     }
 
     @Override
@@ -926,6 +985,9 @@ public class FluidPipeBlockEntity extends BlockEntity {
             input.child(dir.getSerializedName()).ifPresent(faceSections.get(dir)::load);
         }
         input.child("behaviour").ifPresent(behaviour::load);
+        blockedFaces.clear();
+        input.list("blockedFaces", Direction.CODEC).ifPresent(list -> list.forEach(blockedFaces::add));
+        blockCycleIndex = input.getIntOr("blockCycleIndex", 0);
     }
 
     /** One of a pipe's 7 real buffers ({@code null} {@link #face} = CENTER) - ports real {@code

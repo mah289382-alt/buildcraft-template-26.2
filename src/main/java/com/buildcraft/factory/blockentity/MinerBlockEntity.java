@@ -72,6 +72,9 @@ import com.buildcraft.Config;
  * real work to do there.
  */
 public abstract class MinerBlockEntity extends BlockEntity {
+    public static boolean DEBUG_LOG = true;
+    private long debugShaftFeAccum = 0;
+
     protected long progress = 0;
 
     protected final SimpleEnergyHandler energy;
@@ -185,9 +188,11 @@ public abstract class MinerBlockEntity extends BlockEntity {
             try (Transaction tx = Transaction.openRoot()) {
                 int extracted = energy.extract(needed, tx);
                 if (extracted < needed) {
+                    logShaftDebug(level, ownPos);
                     return; // not enough power this tick - the shaft simply doesn't move
                 }
                 tx.commit();
+                debugShaftFeAccum += extracted;
             }
         }
         growthProgress += 1.0 / Config.MINER_SHAFT_TICKS_PER_BLOCK.get();
@@ -200,6 +205,17 @@ public abstract class MinerBlockEntity extends BlockEntity {
         setChanged();
         BlockState state = getBlockState();
         level.sendBlockUpdated(ownPos, state, state, 2);
+        logShaftDebug(level, ownPos);
+    }
+
+    private void logShaftDebug(Level level, BlockPos ownPos) {
+        if (DEBUG_LOG && level.getGameTime() % 100 == 0) {
+            BuildCraft.LOGGER.info(
+                    "[MINER_SHAFT_DEBUG] pos={} tier={} shaftLen={} stored={} FE consumed last 100t={} FE ({}/t avg)",
+                    ownPos, getClass().getSimpleName(), wantedLength, energy.getAmountAsLong(),
+                    debugShaftFeAccum, debugShaftFeAccum / 100.0);
+            debugShaftFeAccum = 0;
+        }
     }
 
     /** Ports real {@code TileMiner.onRemove()}: clears any leftover tube segments below when the machine itself

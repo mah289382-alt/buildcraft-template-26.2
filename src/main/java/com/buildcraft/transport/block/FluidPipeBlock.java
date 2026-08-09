@@ -124,18 +124,55 @@ public class FluidPipeBlock extends Block implements EntityBlock {
         return withConnection(state, level, pos, direction);
     }
 
+    /** Fluid-pipe equivalent of {@link PipeBlock#setPlacedBy} - see that method's javadoc for the full real bug
+     * this fixes (a newly-placed Separate-family pipe's own connectivity is computed before its block entity
+     * exists, silently defaulting to "connects freely" instead of refusing until the real material is known). */
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.@Nullable LivingEntity placer, net.minecraft.world.item.ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        BlockState corrected = state;
+        for (Direction dir : Direction.values()) {
+            corrected = withConnection(corrected, level, pos, dir);
+        }
+        if (corrected != state) {
+            level.setBlock(pos, corrected, 3);
+        }
+    }
+
     private static BlockState withConnection(BlockState state, LevelReader level, BlockPos pos, Direction dir) {
         return state.setValue(PipeBlock.connectedProperty(dir), isConnectable(level, pos, dir))
                 .setValue(PipeBlock.extendedProperty(dir), isContainerNeighbor(level, pos, dir));
     }
 
     /** Fluid-pipe equivalent of {@link PipeBlock#isConnectable} - a side connects to another fluid pipe (subject
-     * to material compatibility via {@link PipeBehaviour#canConnectToPipe}) or a real fluid-storing neighbour. */
+     * to material compatibility via {@link PipeBehaviour#canConnectToPipe}) or a real fluid-storing neighbour.
+     * Also respects a wrench-toggled blocked face (mirroring {@link PipeBlock#isConnectable}'s own real
+     * feature, see that method's javadoc) - only ever settable against a container, not another pipe, so no
+     * matching neighbor-side check is needed here either. */
     public static boolean isConnectable(LevelReader level, BlockPos pos, Direction direction) {
+        if (isFaceBlocked(level, pos, direction)) {
+            return false;
+        }
         if (level.getBlockEntity(pos.relative(direction)) instanceof FluidPipeBlockEntity neighborPipe) {
             return canConnectPipes(level, pos, neighborPipe);
         }
         return isContainerNeighbor(level, pos, direction);
+    }
+
+    private static boolean isFaceBlocked(LevelReader level, BlockPos pos, Direction direction) {
+        return level.getBlockEntity(pos) instanceof FluidPipeBlockEntity self && self.isFaceBlocked(direction);
+    }
+
+    /** Fluid-pipe equivalent of {@link PipeBlock#refreshConnection}. */
+    public static void refreshConnection(Level level, BlockPos pos, Direction dir) {
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof FluidPipeBlock)) {
+            return;
+        }
+        BlockState updated = withConnection(state, level, pos, dir);
+        if (updated != state) {
+            level.setBlockAndUpdate(pos, updated);
+        }
     }
 
     private static boolean canConnectPipes(LevelReader level, BlockPos pos, FluidPipeBlockEntity neighborPipe) {

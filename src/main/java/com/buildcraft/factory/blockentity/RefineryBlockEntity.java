@@ -33,6 +33,7 @@ import net.neoforged.neoforge.transfer.item.ItemStacksResourceHandler;
 import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jspecify.annotations.Nullable;
 
+import com.buildcraft.BuildCraft;
 import com.buildcraft.Config;
 import com.buildcraft.factory.FactoryContent;
 import com.buildcraft.factory.FactoryFluids;
@@ -57,6 +58,10 @@ import com.buildcraft.factory.menu.RefineryMenu;
  * {@code EngineBlockEntity}'s existing pattern in this project, since the renderer needs live values every frame.
  */
 public class RefineryBlockEntity extends BlockEntity implements MenuProvider {
+    public static boolean DEBUG_LOG = true;
+    private long debugFeAccum = 0;
+    private int debugMbAccum = 0;
+
     private final FluidStacksResourceHandler oilTank = new FluidStacksResourceHandler(1, Config.REFINERY_TANK_CAPACITY.get()) {
         @Override
         public boolean isValid(int index, FluidResource resource) {
@@ -173,6 +178,15 @@ public class RefineryBlockEntity extends BlockEntity implements MenuProvider {
             be.decreaseAnimation();
         }
         level.sendBlockUpdated(pos, state, state, 2);
+
+        if (DEBUG_LOG && level.getGameTime() % 100 == 0) {
+            BuildCraft.LOGGER.info(
+                    "[REFINERY_DEBUG] pos={} stored={}/{} FE consumed last 100t={} FE ({}/t avg) oilConverted last 100t={} mB",
+                    pos, be.energy.getAmountAsLong(), Config.REFINERY_ENERGY_CAPACITY.get(), be.debugFeAccum,
+                    be.debugFeAccum / 100.0, be.debugMbAccum);
+            be.debugFeAccum = 0;
+            be.debugMbAccum = 0;
+        }
     }
 
     /** Ports {@code TankUtils.handleRightClick}: tries to FILL first (only the oil tank actually accepts
@@ -255,6 +269,8 @@ public class RefineryBlockEntity extends BlockEntity implements MenuProvider {
                 return false;
             }
             tx.commit();
+            debugFeAccum += energyExtracted;
+            debugMbAccum += extracted;
         }
         setChanged();
         return true;

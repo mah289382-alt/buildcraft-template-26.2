@@ -62,9 +62,9 @@ explicitly declined by user, core module considered closed out.**
 | Original | Status | Notes |
 |---|---|---|
 | Engine tiers (real modern set: Redstone/Stirling/Combustion + Creative) | ✅ | All 4 tiers built as separate blocks (`engine_redstone`, `engine_stirling`, `engine_combustion`, `engine_creative`) — this port's per-material-block pattern instead of source's single metadata-variant block, functionally equivalent |
-| `block.mj_dynamo` (RF→MJ dynamo) | ❌ | Not started |
-| RF Engine tier | ⏳ | Waitlisted — only useful once Kinesis power pipes exist (not built); every machine already takes FE directly without it, no other scenario currently applies |
-| `item.glob.oil` | ❌ | Not started — this port instead gave Oil a real fluid+bucket (see factory fluids) rather than a solid "glob" item |
+| `block.mj_dynamo` (RF→MJ dynamo) | ⬛ | Waitlisted → now effectively declined 2026-08-03: user is planning a full electricity-system redesign around a future IndustrialCraft port (physical spinning gears/coils), so any FE-bridge machine is out of scope until that redesign happens |
+| RF Engine tier | ⬛ | Same reasoning as MJ Dynamo above — out of scope until the electricity redesign |
+| `item.glob.oil` | ❌ | Not started — this port instead gave Oil a real fluid+bucket (see factory fluids) rather than a solid "glob" item; genuinely unused/dead code in real source too (confirmed via grep, no recipe/consumer anywhere), not worth building either way |
 | ~10 base fluids w/ heat variants (full thermal distillation) | ⬛ | Explicit user scope-down to the classic 2-fluid Oil→Fuel chain instead (see fuel-status memory) |
 
 **energy summary: engine tiers done (the core deliverable); dynamo/glob-item/full-fluid-system explicitly out of scope or not started.**
@@ -107,11 +107,10 @@ debugger tool (`item.debugger`) not built — low priority, non-blocking utility
 
 | Original | Status | Notes |
 |---|---|---|
-| `block.zone_planner` | ❌ | Not started — module doesn't exist in this port at all |
+| `block.zone_planner` | ⬛ | Declined by user — no real consumer left upstream (Robots already removed from this source version) |
 
-**robotics summary: 0/1. Whole module not started** (note: original itself only has this one
-block left from the historic Robot feature set — no Robot item/entity/station in this source
-version either, so there's nothing bigger being missed here).
+**robotics summary: 0/1, fully triaged and declined 2026-08-02 — module considered closed out, not
+an open gap.**
 
 ---
 
@@ -119,21 +118,23 @@ version either, so there's nothing bigger being missed here).
 
 | Original | Status | Notes |
 |---|---|---|
-| `block.laser` | ❌ | Not started |
-| `block.assembly_table` | ❌ | Not started |
-| `block.advanced_crafting_table` | ❌ | Not started |
-| `block.integration_table` | ❌ | Not started |
+| `block.laser` | ⬛ | Declined by user ("that looks stupid") |
+| `block.assembly_table` | ⬛ | Declined by user — real overlap with the built Auto Workbench, and Tekkit didn't have it either |
+| `block.advanced_crafting_table` | ⬛ | Declined by user — real overlap with the built Auto Workbench |
+| `block.integration_table` | ⬛ | Declined by user — also confirmed via direct source read that real source ships this with ZERO registered recipes (genuinely non-functional even upstream) |
 | `block.charging_table` / `.programming_table` (dev-only) | ⬛ | Dev-only in original, skip |
-| `item.redstone_chipset` | ❌ | Not started |
-| `item.gate_copier` | ❌ | Not started |
-| `item.plug.gate` (logic gate pluggable) | ❌ | Not started — this is the real "wire/redstone-gate logic system," confirmed explicitly out of scope for now |
-| `item.plug.lens` | ❌ | Not started |
-| `item.plug.pulsar` | ❌ | Not started |
-| `item.plug.light_sensor` | ❌ | Not started |
-| `item.plug.timer` | ❌ | Not started |
-| `item.plug.facade` | ❌ | Not started (facades/pluggable covers explicitly flagged as not started) |
+| `item.redstone_chipset` | ⬛ | Declined by user |
+| `item.gate_copier` | ⬛ | Declined by user |
+| `item.plug.gate` (logic gate pluggable) | ⬛ | Declined by user — this is the real "wire/redstone-gate logic system" |
+| `item.plug.lens` | ⬛ | Declined by user |
+| `item.plug.pulsar` | ⬛ | Declined by user |
+| `item.plug.light_sensor` | ⬛ | Declined by user (zero standalone value without Gates) |
+| `item.plug.timer` | ⬛ | Declined by user (zero standalone value without Gates) |
+| `item.plug.facade` | ⬛ | Declined by user — vanilla item frames already cover the disguise use case |
 
-**silicon summary: 0/12. Whole module not started** — this is also where all pipe gate/plug/facade content actually lives upstream (not `transport`), worth remembering when scoping "pipe accessories" work later.
+**silicon summary: 0/12, but fully triaged — every item explicitly declined by user 2026-08-02, module
+considered closed out, not an open gap.** This is also where all pipe gate/plug/facade content
+actually lives upstream (not `transport`), worth remembering if this decision is ever revisited.
 
 ---
 
@@ -144,16 +145,18 @@ version either, so there's nothing bigger being missed here).
 | Item (solid) pipes — 16 real tiers + Structure = 17 | ✅ **17/17** | Cobblestone, Stone, Iron, Gold, Void, Quartz, Sandstone, Clay, Wood, Diamond, Wood-Diamond, Lapis, Daizuli, Obsidian, Stripes, Emzuli, Structure — all built, real textures/models/recipes, colour-tagging (Lapis/Daizuli), filter GUIs (Diamond/Wood-Diamond/Emzuli) |
 | Fluid ("waterproof") pipes — 11 real tiers | ✅ **11/11** | Cobblestone, Iron, Void, Gold, Stone, Quartz, Sandstone, Clay, Wood, Wood-Diamond, Diamond — all built; flow-engine rewrite + long animation saga resolved (see fluid-pipes-status memory) |
 | `item.waterproof` (pipe upgrade item) | ✅ | Built as `pipe_sealant`, real Cactus→Green Dye→Sealant recipe chain (deliberately NOT the source's Slime Ball shortcut, per user decision) |
-| Power (Kinesis/MJ) pipes — 9 tiers | ❌ | **0/9**, not started |
-| RF power pipes — 9 tiers | ❌ | **0/9**, not started |
-| `item.wire` (gate wiring) | ❌ | Not started — tied to the silicon gate/wire system above |
-| `block.filtered_buffer` | ❌ | Not started |
+| Power (Kinesis/MJ) pipes — 9 tiers | ⬛ | Declined by user — planning a full electricity-system redesign around a future IndustrialCraft port (physical spinning gears/coils), anything tied to this port's current FE-pipe concept is out of scope until then |
+| RF power pipes — 9 tiers | ⬛ | Declined by user — same electricity-redesign reason |
+| `item.wire` (gate wiring) | ⬛ | Declined by user — tied to the already-declined silicon gate system |
+| `block.filtered_buffer` | ⬛ | Declined by user |
 | `block.pipe_holder` | ⬛ | Architectural difference only — this port's pipes are direct placeable blocks, no separate holder-block layer; not a real content gap |
-| `item.plug.blocker` / `.power_adaptor` | ❌ | Not started (lives conceptually alongside silicon's plug system) |
+| `item.plug.blocker` | ✅ | Built differently by user design 2026-08-03: not a standalone item, but a wrench-toggleable per-face "blocked" state on every pipe tier (both item and fluid pipes) — see `PipeBlockEntity`/`FluidPipeBlockEntity.toggleFaceBlocked` |
+| `item.plug.power_adaptor` | ⬛ | Declined by user — same electricity-redesign reason |
 
 **transport summary: all 28 real item+fluid pipe tiers done (the bulk of the module's actual
-content) plus the Sealant chain; power/RF pipe variants and the whole wire/gate/plug/facade
-accessory layer (mostly registered under `silicon` upstream) remain untouched.**
+content) plus the Sealant chain. Power/RF pipes + Wire + Power Adaptor all declined 2026-08-02
+(electricity-system redesign planned around a future IndustrialCraft port). Filtered Buffer and
+Blocker are the only 2 items in the whole checklist still awaiting a decision.**
 
 ---
 
@@ -163,22 +166,21 @@ accessory layer (mostly registered under `silicon` upstream) remain untouched.**
 |---|---:|---:|---:|---|
 | builders | 3 | 10 | 30% | Rest declined by user, module closed out |
 | core | 4 | 12 | 33% | Rest declined by user, module closed out |
-| energy | 1 (engine tiers, the main deliverable) | 5 | ~50% functionally, 20% by count | Dynamo/RF Engine waitlisted, not decided |
-| factory | 6 | 9 | 67% | Rest declined/redirected by user |
+| energy | 1 (engine tiers, the main deliverable) | 5 | ~50% functionally, 20% by count | Rest declined by user (electricity redesign planned), module closed out |
+| factory | 6 | 9 | 67% | Rest declined/redirected by user, module closed out |
 | lib | n/a (infrastructure) | — | — | — |
-| robotics | 0 | 1 | 0% | Real gap, not yet decided |
-| silicon | 0 | 12 | 0% | Real gap, not yet decided (whole module) |
-| transport | 29 (28 pipes + sealant) | 38 | 76% | Power/RF pipes + wire/gate accessory layer, real gap |
+| robotics | 0 | 1 | 0% | Declined by user, module closed out |
+| silicon | 0 | 12 | 0% | Declined by user, module closed out |
+| transport | 30 (28 pipes + sealant + Blocker-as-wrench-feature) | 38 | 79% | Power/RF pipes + Wire + Power Adaptor declined (electricity redesign); Filtered Buffer declined; only `pipe_holder` architectural non-gap remains |
 
-**Biggest completed area**: transport (pipes) — essentially the whole module's tier content.
-**Biggest genuine open gaps** (not declined, just not yet decided/built): silicon (0% — the whole
-gate/plug/facade/laser-table system) and robotics (0%, though upstream itself only has 1 block left
-there). Every other module's remaining items have now been explicitly triaged (built, declined, or
-waitlisted) rather than sitting as unreviewed gaps.
+**Every module in the entire checklist is now fully triaged** (2026-08-03) — nothing left as an
+unreviewed gap. Biggest completed area: transport (pipes) — essentially the whole module's tier
+content, plus the wrench-toggle Blocker feature. Everything not built was either explicitly
+declined by the user, folded into a different already-built feature (Flood Gate → planned Pump
+mode, Blocker → wrench toggle), or is a real architectural non-gap (`pipe_holder`).
 
 Matches this project's own stated priority order (quarry → pipes → engines → fuel) — those are
-exactly the 4 areas showing highest completion above; silicon/robotics/most of builders+core were
-never the current focus, not a surprise regression.
+exactly the 4 areas showing highest completion above.
 
 ---
 

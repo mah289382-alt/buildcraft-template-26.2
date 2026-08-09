@@ -44,6 +44,10 @@ import com.buildcraft.transport.pipe.PipeConnectable;
  * upfront detection before extending at all.
  */
 public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConnectable {
+    public static boolean DEBUG_LOG = true;
+    private long debugFeAccum = 0;
+    private int debugBlocksAccum = 0;
+
     public MiningWellBlockEntity(BlockPos pos, BlockState state) {
         super(FactoryContent.MINING_WELL_BLOCK_ENTITY.get(), pos, state,
                 Config.MINING_WELL_ENERGY_CAPACITY.get(), Config.MINING_WELL_MAX_FE_PER_TICK.get());
@@ -88,12 +92,22 @@ public class MiningWellBlockEntity extends MinerBlockEntity implements PipeConne
                 tx.commit();
             }
             progress += extracted;
+            debugFeAccum += extracted;
         }
         if (progress >= target) {
             progress = 0;
             mineAndRouteDrops(level, tip);
+            debugBlocksAccum++;
             BuildCraft.LOGGER.info("MiningWell at {}: RESUMED past {}", pos, tip);
             paused = false; // resume probing deeper past it
+        }
+        if (DEBUG_LOG && level.getGameTime() % 100 == 0) {
+            BuildCraft.LOGGER.info(
+                    "[MININGWELL_DEBUG] pos={} stored={}/{} FE consumed last 100t={} FE ({}/t avg) blocksMined last 100t={}",
+                    pos, energy.getAmountAsLong(), Config.MINING_WELL_ENERGY_CAPACITY.get(), debugFeAccum,
+                    debugFeAccum / 100.0, debugBlocksAccum);
+            debugFeAccum = 0;
+            debugBlocksAccum = 0;
         }
     }
 

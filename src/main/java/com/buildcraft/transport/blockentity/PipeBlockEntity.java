@@ -108,6 +108,11 @@ public class PipeBlockEntity extends BlockEntity {
     }
     private int roundRobinCursor = 0;
 
+    /** Real feature, not a source port - replaces real source's standalone "Blocker" pluggable item (declined by
+     * user in favor of this) with a wrench-toggleable per-face block, available on every pipe tier automatically
+     * instead of needing a separate item/recipe. See {@link #toggleFaceBlocked}. */
+    private final EnumSet<Direction> blockedFaces = EnumSet.noneOf(Direction.class);
+
     public PipeBlockEntity(BlockEntityType<?> type, BlockPos pos, BlockState state, Supplier<PipeBehaviour> behaviourFactory) {
         super(type, pos, state);
         this.behaviour = behaviourFactory.get();
@@ -115,6 +120,57 @@ public class PipeBlockEntity extends BlockEntity {
 
     public PipeBehaviour getBehaviour() {
         return behaviour;
+    }
+
+    public boolean isFaceBlocked(Direction dir) {
+        return blockedFaces.contains(dir);
+    }
+
+    /** Toggles whether {@code dir} is manually blocked (see {@link PipeBlock#isConnectable}'s javadoc) and
+     * refreshes this pipe's own blockstate for that direction.
+     * @return the new blocked state (true = now blocked) */
+    public boolean toggleFaceBlocked(Direction dir) {
+        boolean nowBlocked = !blockedFaces.remove(dir);
+        if (nowBlocked) {
+            blockedFaces.add(dir);
+        }
+        setChanged();
+        if (level != null) {
+            PipeBlock.refreshConnection(level, worldPosition, dir);
+        }
+        return nowBlocked;
+    }
+
+    /** Real design change (2026-08-03 QC pass, user's own request, refined twice): precisely raycasting a
+     * specific thin connector arm to target ONE face is unreliable (a known, already-documented limitation -
+     * see {@code WoodBehaviour.onWrenchClick}'s own javadoc for the same issue on direction-setting), so
+     * blocking doesn't try to read which face was clicked at all. A plain wrench click anywhere on the pipe
+     * advances a persistent cursor through every direction that has a real CONTAINER neighbor (a chest, tank,
+     * etc. - NOT another pipe: forcibly disconnecting two otherwise-compatible pipes would defeat the whole
+     * point of material-specific connectivity, e.g. Stone vs. Cobblestone only connecting to their own kind),
+     * toggling that one direction's blocked state and moving on - repeated clicks walk through disconnecting
+     * each real container connection one at a time, then (once all are blocked) continue the same cycle to
+     * reconnect them one at a time, in the same order, forever. */
+    private int blockCycleIndex = 0;
+
+    public void cycleBlockedFace(Level level) {
+        Direction[] all = Direction.values();
+        for (int i = 0; i < all.length; i++) {
+            Direction candidate = all[(blockCycleIndex + i) % all.length];
+            if (hasContainerNeighbor(level, worldPosition, candidate)) {
+                blockCycleIndex = (blockCycleIndex + i + 1) % all.length;
+                toggleFaceBlocked(candidate);
+                return;
+            }
+        }
+    }
+
+    private static boolean hasContainerNeighbor(Level level, BlockPos pos, Direction dir) {
+        BlockPos neighborPos = pos.relative(dir);
+        if (level.getBlockEntity(neighborPos) instanceof PipeBlockEntity) {
+            return false;
+        }
+        return level.getCapability(Capabilities.Item.BLOCK, neighborPos, dir.getOpposite()) != null;
     }
 
     public static void tick(Level level, BlockPos pos, BlockState state, PipeBlockEntity be) {
@@ -272,12 +328,12 @@ public class PipeBlockEntity extends BlockEntity {
 
         @Override
         public boolean isValid(int index, ItemResource resource) {
-            return !resource.isEmpty();
+            return !resource.isEmpty() && !isFaceBlocked(side);
         }
 
         @Override
         public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
-            if (resource.isEmpty() || amount <= 0) {
+            if (resource.isEmpty() || amount <= 0 || isFaceBlocked(side)) {
                 return 0;
             }
             updateSnapshots(transaction);
@@ -424,6 +480,11 @@ public class PipeBlockEntity extends BlockEntity {
             list.add(item);
         }
         behaviour.save(output.child("behaviour"));
+        ValueOutput.TypedOutputList<Direction> blocked = output.list("blockedFaces", Direction.CODEC);
+        for (Direction dir : blockedFaces) {
+            blocked.add(dir);
+        }
+        output.putInt("blockCycleIndex", blockCycleIndex);
     }
 
     @Override
@@ -432,5 +493,8 @@ public class PipeBlockEntity extends BlockEntity {
         items.clear();
         input.list("items", TravellingItem.CODEC).ifPresent(list -> list.forEach(items::add));
         input.child("behaviour").ifPresent(behaviour::load);
+        blockedFaces.clear();
+        input.list("blockedFaces", Direction.CODEC).ifPresent(list -> list.forEach(blockedFaces::add));
+        blockCycleIndex = input.getIntOr("blockCycleIndex", 0);
     }
 }

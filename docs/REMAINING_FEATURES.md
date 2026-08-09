@@ -127,7 +127,7 @@ block. Only one variant (`laser_back`) has an enabled recipe in this source snap
 a general player-placeable decoration. Low priority: zero mechanical function beyond light level
 and appearance.
 
-### 11. Paintbrush item
+### ~~11. Paintbrush item~~ — DECLINED, not being built
 Recolors paintable blocks (pipes, anything implementing BuildCraft's colorable-block API) via
 right-click, using a dye-loaded charge system (64 uses per charge) instead of needing a fresh dye
 item every time — 16 dye-color metadata variants plus a "clean"/uncharged state. Spawns colored
@@ -142,7 +142,7 @@ example items plus three toggles: precise (match exact damage/NBT), byType (matc
 category using slot 0 as an example), byMaterial (broader category match, e.g. "any wood plank").
 You configure it once, then insert it into a consuming machine as a reusable, named filter.
 
-### 13. Map Location item
+### ~~13. Map Location item~~ — DECLINED, not being built
 A general "capture a position/region" item with 6 sub-types: Spot (a single point+side), Area (min/
 max corners, captured from a completed marker), Path / Path-Repeating (an ordered list of points
 from a chain of Path Markers, auto-detected as repeating/looped if the path closes on itself), and
@@ -161,9 +161,8 @@ delete it, right-click one of its addon slots (like the Filler Planner) to open 
 shift-right-click to remove the addon. This is the single tool tying "define a region/line" to
 "let a machine build/scan/fill/traverse it."
 
-### 15. Volume Box item
-*Note: its only real consumers upstream (Filler, Architect Table) are now declined — low remaining
-value unless you have a future feature in mind that would use a defined region.*
+### ~~15. Volume Box item~~ — DECLINED, not being built
+*Its only real consumers upstream (Filler, Architect Table) were already declined too.*
 
 Creates a brand-new Volume Box — right-click a block face to place a zero-size box adjacent to it
 (no physical block/tile spawned, it's pure save-data plus a client-rendered outline), then use the
@@ -171,7 +170,7 @@ Marker Connector to drag its corner and size it into an actual cuboid. This is t
 replacement for the old physical-marker-block area system, and it's the shared "region" backbone
 that Filler, Architect Table, and (indirectly) Builder all attach to.
 
-### 16. Fragile Fluid Shard item
+### ~~16. Fragile Fluid Shard item~~ — DECLINED, not being built
 Not player-craftable — auto-generated when a BuildCraft fluid block "shatters" into item form
 (e.g. mined without the right tool). Holds up to 500mB, drain-only (can never be refilled), meant
 to be emptied once rather than reused like a bucket. Mostly a minor lore/consolation-prize mechanic
@@ -181,7 +180,8 @@ so breaking a fluid block by hand isn't a complete waste — not something pipes
 
 ## energy
 
-### MJ Dynamo
+### ~~MJ Dynamo~~ — DECLINED 2026-08-03 (electricity-system redesign planned around a future
+IndustrialCraft port; out of scope until then)
 Converts stored MJ *into* RF, letting your MJ power network drive RF-based machines from other
 mods. Holds an internal MJ battery (fed by engines/pipes on 5 of its 6 faces) and a small RF
 buffer drained out the 6th (wrench-rotatable, can chain through up to 3 more dynamos to reach a
@@ -191,10 +191,7 @@ in the original). Off by default in source config. Only useful if you want two-w
 between this mod's MJ economy and RF machines from other mods — with none of those present, low
 priority.
 
-### RF Engine tier — WAITLISTED, not decided yet
-*Only real use: bridging an RF/IC2 cable into a future Kinesis power-pipe network (not built).
-Every machine in this port already accepts FE directly (see `BuildCraft.registerCapabilities`), so
-there's no scenario for this block until Kinesis pipes exist too.*
+### ~~RF Engine tier~~ — DECLINED 2026-08-03 (same electricity-redesign reason as MJ Dynamo above)
 
 A 4th engine block built on the same heat/piston/redstone-gating framework as
 Redstone/Stirling/Combustion, but instead of burning fuel it does the reverse of the Dynamo: it's
@@ -277,7 +274,7 @@ water, by turning it solid and optionally reversing it later.
 
 ## robotics
 
-### Zone Planner
+### ~~Zone Planner~~ — DECLINED
 A standalone "paint a region onto a map" utility. **Notably, this specific 1.12.2 source snapshot
 has already had the actual Robots feature removed** — no Robot item/entity/station exists anywhere
 in this codebase, so the Zone Planner currently has no consumer of the zones it defines; it
@@ -293,7 +290,7 @@ would consume zone data.
 
 ## silicon
 
-### Laser
+### ~~Laser~~ — DECLINED, not being built (user: "that looks stupid")
 An MJ-powered "wireless" power beam for laser-crafting tables (below) — no physical/pipe
 connection needed, just line-of-sight and range (6 blocks). Holds an internal MJ battery fed by an
 adjacent engine/pipe; each tick it scans a cone in front of it for crafting-table targets that
@@ -303,29 +300,42 @@ turns" / flicker between targets rather than all charging simultaneously). Drain
 push a capped amount of MJ per tick to the chosen target, ramping up output gradually rather than
 maxing out instantly on a freshly-placed laser.
 
-### Assembly Table / Advanced Crafting Table / Integration Table
-Three genuinely different machines sharing one block class (parameterized by table type) and the
-same laser-power-receiving base class:
-- **Assembly Table**: a multi-recipe queue autocrafter. Scans a global recipe registry against its
-  12-slot buffer for everything currently craftable, lets you queue multiple different recipes at
-  once via the GUI, and round-robins the laser's power between queued jobs as materials allow —
-  effectively an assembly line you configure once and keep feeding.
-- **Advanced Crafting Table**: a laser-powered vanilla-recipe autocrafter — a phantom 3×3 blueprint
-  grid (template only) plus a real materials inventory, continuously trying to match the pattern
-  and craft once it has enough laser-supplied MJ (500 MJ/craft). Essentially "a player standing at
-  a crafting table," automated.
-- **Integration Table**: an item-*upgrading* machine, not a crafter — takes one "target" item plus
-  up to 8 other ingredient items and merges them into a modified/upgraded version of the target
-  (BuildCraft's item-upgrade mechanic, distinct recipe type from the other two).
+Three genuinely different machines sharing one block class in source (parameterized by table type)
+and the same laser-power-receiving base class - going through them one at a time below.
 
-### Redstone Chipset item
+### ~~Assembly Table~~ — DECLINED (user: wasn't in original Tekkit pack, multiple Auto Workbenches cover it)
+A multi-recipe queue autocrafter. Scans a global recipe registry against its 12-slot buffer for
+everything currently craftable, lets you queue multiple different recipes at once via the GUI, and
+round-robins the laser's power between queued jobs as materials allow - effectively an assembly
+line you configure once and keep feeding. Real overlap with the already-built Auto Workbench (which
+only handles one recipe at a time) - the user's own workaround (place several Auto Workbenches) is
+a fair substitute given the declined Laser dependency too.
+
+### ~~Advanced Crafting Table~~ — DECLINED (real overlap with the already-built Auto Workbench)
+A laser-powered vanilla-recipe autocrafter - a phantom 3×3 blueprint grid (template only) plus a
+real materials inventory, continuously trying to match the pattern and craft once it has enough
+laser-supplied MJ (500 MJ/craft). Essentially "a player standing at a crafting table," automated -
+real, functional overlap with the already-built Auto Workbench (which is genuinely the same concept:
+phantom pattern grid + materials + auto-craft, just FE-powered instead of laser-powered).
+
+### ~~Integration Table~~ — DECLINED (real source ships it with ZERO registered recipes - genuinely
+non-functional/empty content even in the original, not just a low-priority port target)
+An item-*upgrading* machine, not a crafter - takes one "target" item plus up to 8 other ingredient
+items and merges them into a modified/upgraded version of the target. Confirmed by direct source
+read: `IntegrationRecipeRegistry` is fully wired up but `common/` (the actual compiled source tree)
+never populates it with a single recipe - the real recipes (e.g. upgrading a Robot with a redstone
+board) only exist in a disabled legacy code path (`src_old_license/`, explicitly commented out of
+the build, targeting an incompatible old API). Building this would mean inventing recipes from
+scratch, not porting real ones.
+
+### ~~Redstone Chipset item~~ — DECLINED
 A tiered crafting/component item (Red/Iron/Gold/Quartz/Diamond), each tier made in the Assembly
 Table from redstone dust + a progressively rarer material at rising MJ cost. Feeds into: gate
 material recipes (Iron chipset gates Iron gates, Gold chipset gates Gold gates), gate *modifier*
 upgrades (Quartz/Diamond chipsets add extra trigger/action parameter slots to an existing gate),
 and the Gate Copier's own recipe. BuildCraft's generic "tech tier" currency for the silicon module.
 
-### Gate Copier item
+### ~~Gate Copier item~~ — DECLINED
 A clone tool for gate configuration. Right-click a configured gate to copy its full trigger/action/
 connection setup onto the copier; right-click a different gate with it loaded to paste that
 config over. Shift-right-click the copier itself (not aimed at a gate) to clear stored data. Pastes
@@ -333,7 +343,9 @@ by slot index regardless of gate tier — copying from a higher-tier gate (more 
 lower-tier one silently drops the extra slots rather than erroring. A big time-saver for wiring up
 many identical gates across a network.
 
-### Pluggable Gate — the full redstone-logic system
+### ~~Pluggable Gate — the full redstone-logic system~~ — DECLINED (also drops the Wire system
+below, and reduces the Pulsar/Light Sensor/Timer plugs to their standalone value only, since their
+real purpose is feeding gate triggers)
 **This is the big one — BuildCraft's whole "programmable brain on a pipe" feature**, and genuinely
 the most complex single system left unported. A Gate sits on one pipe face and hosts a set of
 trigger/action "slots," where the slot count and available parameter richness are set by the
@@ -362,7 +374,7 @@ system (which needs to be extensible so every module can plug triggers/actions i
 tier/material system, the GUI, and (if you want full fidelity) the Wire system for cross-network
 signaling.
 
-### Pluggable Lens
+### ~~Pluggable Lens~~ — DECLINED
 A colored glass disc on a pipe face, two variants. A plain lens *tags* items passing through that
 face with its color (on both insertion and exit) — this is how colored item-routing gets its color
 tag without needing dyed pipe segments. A filter lens (has iron bars added) instead *restricts*
@@ -371,7 +383,7 @@ matching-color items during pathing decisions. Together: plain lenses paint colo
 lenses gate flow by color — BuildCraft's non-Diamond-Pipe way of doing colored sorting at a
 junction.
 
-### Pluggable Pulsar
+### ~~Pluggable Pulsar~~ — DECLINED
 A gate-controllable MJ pulse source. Can be manually toggled by right-click, or driven by two gate
 actions: "Pulsar Constant" (stays enabled on a rolling window as long as the action stays active)
 or "Pulsar Single" (queues exactly one discrete pulse per activation — used to pull exactly one
@@ -379,17 +391,17 @@ item's worth of extraction power at a time). Once enabled, every 20-tick cycle i
 MJ into the pipe's power behaviour. The standard "clock signal" component for triggering discrete
 extraction pulses on a Kinesis power pipe network, typically paired with a gate condition.
 
-### Pluggable Light Sensor
+### ~~Pluggable Light Sensor~~ — DECLINED (zero standalone value without Gates)
 Contributes two triggers ("light low" / "light high") to a gate on the same pipe face, sampling the
 light level of the block immediately outside that face against a fixed threshold. No behavior of
 its own beyond registering these — a pipe-mounted, gate-only equivalent of a Daylight Sensor.
 
-### Pluggable Timer
+### ~~Pluggable Timer~~ — DECLINED (zero standalone value without Gates)
 Contributes three triggers (short/medium/long — 5/10/15 second periods) that fire true for exactly
 one tick each cycle, not a sustained duty cycle. Commonly paired with a Pulsar's "single pulse"
 action via a gate to build a periodic extraction clock.
 
-### Pluggable Facade
+### ~~Pluggable Facade~~ — DECLINED (user: vanilla item frames already cover this)
 Disguises a pipe segment's exterior as another block's appearance while keeping most of its real
 connectivity/hitbox intact. Crafted at the Assembly Table by feeding in the block to disguise as.
 Two types: Basic (one fixed captured appearance) and Phased (up to 17 captured states — one "off"
@@ -402,7 +414,9 @@ cosmetic/structural — hides pipe networks behind normal-looking walls, no logi
 
 ## transport
 
-### Kinesis (MJ) power pipes
+### ~~Kinesis (MJ) power pipes~~ — DECLINED (user is planning a full electricity-system redesign
+around a future IndustrialCraft port — physical spinning gears/coils generating real power — so
+anything tied to this port's current FE-pipe concept is out of scope until that redesign happens)
 Mechanically distinct from item/fluid pipes — there's no discrete object with a render position
 traveling through the pipe. Each segment models 6 directional "sections" that run a two-phase
 per-tick algorithm: first, real MJ-consuming machines report how much power they want, and that
@@ -413,14 +427,14 @@ actually act as receivers/emitters connecting to an adjacent engine — other ti
 "flow" you'd see rendered is a cosmetic texture-scroll cue based on flow direction, not an actual
 moving-particle animation the way items are.
 
-### RF power pipes
+### ~~RF power pipes~~ — DECLINED (same electricity-redesign reason as Kinesis pipes above)
 Line-for-line the identical two-phase request/supply algorithm as the MJ pipes above, just
 implemented against Forge's standard RF energy capability instead of BuildCraft's own MJ interface.
 In source, RF and MJ Kinesis pipes are literally the same block/item with a different internal flow
 implementation selected — not two separately-modeled pipe families. Optional auto-bridging exists
 so an MJ pipe can talk to an RF-only receiver and vice versa.
 
-### Wire item / Wire system
+### ~~Wire item / Wire system~~ — DECLINED (only real consumer, Gates, already declined)
 The wire item itself is trivial (16 color variants, no logic). The real system is what lets a
 gate's action on one part of your pipe network flip a trigger on a *completely different, physically
 distant* gate — wires placed on pipe faces form same-colored connected networks (flood-filled
@@ -432,19 +446,34 @@ capability — only physical pipe-segment adjacency matters for wire propagation
 segment is actually configured to move item/fluid/power. Meaningful mainly once Gates exist (no
 point wiring without something to trigger).
 
-### Filtered Buffer block
+### ~~Filtered Buffer block~~ — DECLINED
 A compact 9-slot storage buffer where each slot is locked to only accept items matching a
 phantom "filter template" placed in a matching filter slot — effectively chest space with a
 built-in 9-way type-sorter baked into one block, instead of needing 9 separate filtered chests.
 Standalone, no dependency on Gates/Wires/anything else.
 
-### Pluggable Blocker
-The simplest plug — purely seals one face of a pipe (stops items/fluid/power exiting that side,
-gives it a capped look), zero logic or capabilities of its own. Other systems (like Wire's
-connectivity check) specifically check for a blocker to know a signal/connection can't bridge
-through that side.
+### ~~Pluggable Blocker~~ — BUILT DIFFERENTLY 2026-08-03, per user's own design
+Real source: the simplest plug — purely seals one face of a pipe (stops items/fluid/power exiting
+that side, gives it a capped look), zero logic or capabilities of its own.
 
-### Pluggable Power Adaptor
+**This port's version, refined twice after real QC testing**: user pointed out an unconnected face
+is already effectively sealed (no neighbor = nothing happens), so the real use case is a face that
+*does* have a real neighbor you specifically want to exclude without physically disconnecting
+anything. Built as a wrench-cycled per-face "blocked" state, available on every pipe tier
+automatically (item AND fluid pipes) - no content overhead (no item, no recipe, no model) versus
+the real source design.
+
+Two real refinements after the first version shipped: (1) targeting by "which face was clicked"
+turned out unreliable (same known raycasting-a-thin-arm limitation already documented for Iron/
+Wood's own wrench behavior) - redesigned so a plain wrench click anywhere on the pipe instead
+cycles a persistent cursor through every real neighbor, disconnecting each one in turn and then
+reconnecting them in the same order once all are blocked, no aiming needed at all. (2) the cycle
+was narrowed to CONTAINER neighbors only, on user request - pipe-to-pipe blocking was dropped
+entirely, since forcibly disconnecting two otherwise-compatible pipes defeats the actual point of
+material-specific connectivity rules (e.g. Stone only connecting to Stone). Sneak-click keeps its
+existing, unrelated meaning (Iron/Wood's own direction cycling), untouched throughout.
+
+### ~~Pluggable Power Adaptor~~ — DECLINED (same electricity-redesign reason as Kinesis pipes above)
 Exposes a pipe's own MJ power capability outward as a synthetic RF energy port, letting adjacent
 RF-only machines charge directly off an MJ Kinesis network through a plain pipe segment without
 needing a separate physical RF pipe run. One-way (receive only), with careful remainder-banking so
@@ -452,23 +481,11 @@ the MJ↔RF integer conversion doesn't lose power to rounding across ticks.
 
 ---
 
-## Suggested reading order if you want a natural chain
+## Status: fully triaged (2026-08-03)
 
-If you're picking a next target rather than going alphabetically, a few of these cluster naturally:
-
-- ~~Gears~~ — done (2026-08-02).
-- ~~Auto Workbench~~ — done (2026-08-02), including finishing source's own unshipped tag-aware
-  matching.
-- ~~Volume Box + Marker Connector / Snapshot chain~~ — moot: the entire builders snapshot/blueprint
-  chain (Filler, Builder, Architect Table, Electronic Library, Replacer, Snapshot, Schematic
-  Single, Filler Planner) was declined, which was the only real consumer of Volume Box and most of
-  Marker Connector's purpose.
-- ~~Water Gel~~ — declined by user.
-- **Pluggable Gate** (silicon) is a large, mostly-self-contained system — the statement/trigger
-  registry it needs is generic infrastructure that Power pipes, Wires, and every other
-  trigger-providing module would also benefit from once it exists. The single biggest remaining
-  genuine (not declined/waitlisted) gap in the whole checklist at this point.
-- **Wire system** (transport) is low-value on its own until Gates exist — no point wiring gates
-  together before gates exist to wire.
-- **Zone Planner** (robotics) has no real consumer left in this source version (Robots were already
-  removed upstream) — lowest value of anything on this list unless you have your own plan for it.
+Every single item in this document has now been explicitly decided one at a time - built (Gears,
+Auto Workbench, Blocker-as-wrench-feature), declined, folded into something else already built
+(Flood Gate → planned Pump mode), or ruled a non-gap (`pipe_holder`). Nothing left unreviewed.
+There's no more "next natural target" list to work through here - any further work on this mod
+would be a genuinely new decision (revisiting something declined, or a feature not in original
+BuildCraft at all), not picking the next item off this checklist.

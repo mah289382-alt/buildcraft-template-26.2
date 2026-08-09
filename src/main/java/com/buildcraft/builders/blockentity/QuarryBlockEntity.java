@@ -58,6 +58,10 @@ import com.buildcraft.transport.pipe.PipeConnectable;
  * of the mining box down, so the drill never has to double back across a whole layer it already covered.
  */
 public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
+    public static boolean DEBUG_LOG = true;
+    private long debugFeAccum = 0;
+    private int debugBlocksAccum = 0;
+
     private static final int MAX_INSERT = 10_000;
     private static final int MAX_EXTRACT = 10_000;
 
@@ -78,6 +82,17 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
     private boolean chunksForced = false;
     // Every position where this Quarry has placed a Frame block, so they can be cleaned up if the Quarry is broken.
     private final Set<BlockPos> placedFramePositions = new HashSet<>();
+    /** Real bug fixed (2026-08-08): {@code drillPos} (below) gets assigned the moment {@link #selectNextTask}
+     * FIRST runs, which only requires {@code budget > 0} in {@link #runTasks} - i.e. the instant ANY nonzero FE
+     * is stored, well before enough has accumulated to actually complete a single task. That made the renderer
+     * (which shows the "idle" wireframe box only while {@code drillPos == null}) switch to the "actively
+     * drilling" gantry view within the first few ticks of ever receiving power, even while genuinely starved
+     * and making zero real progress for a long time afterward - exactly what looked like "no wireframe when
+     * idle/unpowered" once engine output was correctly nerfed and that starved period got much longer. This
+     * flag only flips true the first time a task actually SPENDS real power (in {@link #runTasks}), and gates
+     * what the client-synced drill position shows - {@code drillPos} itself is untouched, still needed
+     * immediately for the box iterator's own internal bookkeeping. */
+    private boolean hasStartedWork = false;
 
     /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #routeDrop} used to call the raw, uncached
      * {@code level.getCapability(...)} for up to 6 directions per mined-block drop - see
@@ -107,7 +122,7 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
     public static void tick(Level level, BlockPos pos, BlockState state, QuarryBlockEntity be) {
         if (level.isClientSide()) {
             be.prevClientDrillPos = be.clientDrillPos;
-            be.clientDrillPos = be.drillPos;
+            be.clientDrillPos = be.hasStartedWork ? be.drillPos : null;
             be.prevClientTaskPower = be.clientTaskPower;
             be.clientTaskPower = be.currentTaskObj != null ? be.currentTaskObj.power : 0;
             return;
@@ -140,6 +155,14 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
 
     public @Nullable BlockPos getFrameMax() {
         return frameMax;
+    }
+
+    /** The deepest Y the drill/connector rod can ever reach ({@code mineMin}'s own Y, not the frame posts' -
+     * see {@link com.buildcraft.builders.client.render.QuarryBlockEntityRenderer#getRenderBoundingBox} for why
+     * this needs to be exposed separately from {@link #getFrameMin()}: the frame's own Y-range is just the
+     * (short) post height, while the drill can dig far below it. */
+    public @Nullable BlockPos getMineMin() {
+        return mineMin;
     }
 
     /**
@@ -249,6 +272,17 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
                 mineMin, mineMax, mineMax.getX() - mineMin.getX() + 1, mineMax.getY() - mineMin.getY() + 1, mineMax.getZ() - mineMin.getZ() + 1,
                 frameQueue.size(), degenerate ? " | WARNING: degenerate mining box, nothing to mine" : "");
         setChanged();
+        // Real bug fixed (2026-08-08): setChanged() alone only marks this dirty for disk SAVING - it doesn't
+        // send anything over the network. frameMin/frameMax (which the renderer needs for both its bounding box
+        // and the pre-drilling wireframe) were computed here but never actually reached the client until
+        // something else happened to trigger a sync later - runTasks()'s own sync is conditional on real task
+        // progress, which (now that engines are correctly weak) can be a long time coming. Reloading the world
+        // "fixed" it only because a fresh chunk load re-reads the by-then-already-saved NBT from disk, not
+        // because anything was actually wrong with the data - the initial placement just never told the client
+        // it existed. A real network sync right here, the moment the area is known, closes that gap.
+        if (level instanceof ServerLevel) {
+            syncToClients(level);
+        }
     }
 
     private void forceChunks(ServerLevel level) {
@@ -409,11 +443,15 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
             }
             budget -= extracted;
             changed = true;
+            hasStartedWork = true;
+            debugFeAccum += extracted;
             MiningTask finishedTask = currentTaskObj;
             boolean done = currentTaskObj.addPower(extracted);
             if (done) {
                 if (finishedTask instanceof BreakBlockTask task && !task.isMining) {
                     frameQueue.pollFirst();
+                } else if (finishedTask instanceof BreakBlockTask task) {
+                    debugBlocksAccum++;
                 } else if (finishedTask instanceof AddFrameTask) {
                     frameQueue.pollFirst();
                 }
@@ -425,6 +463,14 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
         if (changed) {
             setChanged();
             syncToClients(level);
+        }
+        if (DEBUG_LOG && level.getGameTime() % 100 == 0) {
+            BuildCraft.LOGGER.info(
+                    "[QUARRY_DEBUG] pos={} stored={}/{} FE consumed last 100t={} FE ({}/t avg) blocksMined last 100t={}",
+                    getBlockPos(), energy.getAmountAsLong(), Config.QUARRY_ENERGY_CAPACITY.get(), debugFeAccum,
+                    debugFeAccum / 100.0, debugBlocksAccum);
+            debugFeAccum = 0;
+            debugBlocksAccum = 0;
         }
     }
 
@@ -607,6 +653,7 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
         output.putBoolean("areaInitialized", areaInitialized);
         output.putBoolean("finished", finished);
         output.putBoolean("chunksForced", chunksForced);
+        output.putBoolean("hasStartedWork", hasStartedWork);
         if (frameMin != null) output.store("frameMin", BlockPos.CODEC, frameMin);
         if (frameMax != null) output.store("frameMax", BlockPos.CODEC, frameMax);
         if (mineMin != null) output.store("mineMin", BlockPos.CODEC, mineMin);
@@ -655,6 +702,7 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
         areaInitialized = input.getBooleanOr("areaInitialized", false);
         finished = input.getBooleanOr("finished", false);
         chunksForced = input.getBooleanOr("chunksForced", false);
+        hasStartedWork = input.getBooleanOr("hasStartedWork", false);
         frameMin = input.read("frameMin", BlockPos.CODEC).orElse(null);
         frameMax = input.read("frameMax", BlockPos.CODEC).orElse(null);
         mineMin = input.read("mineMin", BlockPos.CODEC).orElse(null);
@@ -805,9 +853,21 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
 
         @Override
         boolean finish(long added, long target) {
-            if (!level.getBlockState(framePos).isAir()) {
-                // Already occupied by something else in the meantime - nothing to do, refund.
-                return false;
+            // Real bug fixed: this used to bail out (refund, leave a permanent gap) if something re-occupied
+            // framePos between task creation and completion - e.g. water/oil flowing back into a spot a
+            // BreakBlockTask had just cleared, several ticks earlier, while THIS task was still accumulating
+            // power. Since runTasks() unconditionally polls frameQueue once this task reports "done" regardless
+            // of finish()'s return value, that bail-out silently dropped the position forever - the exact
+            // "missing frame piece where something was in the way" symptom. A frame position must always end up
+            // with a real Frame block, so force-clear whatever's there now (matching BreakBlockTask's own
+            // obstruction-clearing pattern) instead of giving up.
+            BlockState blocking = level.getBlockState(framePos);
+            if (!blocking.isAir()) {
+                if (DEBUG_LOG) {
+                    BuildCraft.LOGGER.info("[QUARRY_DEBUG] pos={} frame slot {} was re-occupied by {} before placement - force-clearing",
+                            getBlockPos(), framePos, blocking.getBlock());
+                }
+                level.destroyBlock(framePos, false, null, 512);
             }
             BlockState frameState = FrameBlock.computeState(BuildersContent.FRAME_BLOCK.get().defaultBlockState(), level, framePos);
             level.setBlockAndUpdate(framePos, frameState);

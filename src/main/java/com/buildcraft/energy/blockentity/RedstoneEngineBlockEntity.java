@@ -71,4 +71,13 @@ public class RedstoneEngineBlockEntity extends EngineBlockEntity {
     protected long getMaxPowerExtracted() {
         return Config.ENGINE_REDSTONE_MAX_PULSE_OUTPUT.get();
     }
+
+    /** Real bug fixed (2026-08-08): this config already existed with exactly this intent ("a flat trickle") but
+     * was never actually wired into anything - {@link #getMaxPowerExtracted} (the PULSE burst cap) was being
+     * used for continuous receivers too, letting a single Redstone Engine run a Quarry at near-full speed. Now
+     * genuinely the weakest tier for anything that isn't a Wood pipe, matching source's real intent. */
+    @Override
+    protected long getSustainedFePerTick() {
+        return Config.ENGINE_REDSTONE_FE_PER_TICK.get();
+    }
 }

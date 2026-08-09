@@ -321,6 +321,16 @@ public class CombustionEngineBlockEntity extends EngineBlockEntity implements Me
         return Config.ENGINE_COMBUSTION_MAX_PULSE_OUTPUT.get();
     }
 
+    // REVERTED (2026-08-08, user-reported): a getSustainedFePerTick() override reusing the raw 300/600 FE/tick
+    // production rate briefly lived here, reasoning Combustion should be the powerhouse tier. Live testing
+    // showed that was way too far - a single Combustion Engine let a Quarry mine 38-50 blocks per 5 seconds,
+    // "9000% work." No override at all means this now inherits the base class default
+    // (getSustainedFePerTick() -> getMaxPowerExtracted(), i.e. the existing, already-tuned 160 FE/tick pulse
+    // cap above) - the same number continuous receivers effectively got before any of this session's engine
+    // changes, still clearly the strongest tier (10 Redstone / 40 Stirling / 160 Combustion) without being
+    // absurd. The real fix that mattered (gating pushPower on redstonePowered, so a lost signal actually stops
+    // delivery instead of draining a huge stored buffer) is untouched.
+
     @Override
     protected boolean isPumping() {
         return burnTime > 0;

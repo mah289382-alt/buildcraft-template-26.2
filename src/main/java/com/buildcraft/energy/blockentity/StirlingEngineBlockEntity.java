@@ -75,7 +75,18 @@ public class StirlingEngineBlockEntity extends EngineBlockEntity implements Menu
      */
     @Override
     protected void burn(Level level, BlockPos pos, BlockState state) {
-        if (burnTime <= 0 && redstonePowered) {
+        // Real bug fixed (2026-08-08, user-reported): this used to let an already-burning fuel item keep
+        // counting down and producing power regardless of CURRENT redstonePowered - only the START of a new
+        // burn was gated on it. That was a deliberate, documented port of real source's own behavior, but live
+        // testing showed it's not what's wanted here: the piston kept visibly pumping (isPumping() = burnTime>0)
+        // for a long stretch after the redstone signal was already gone, which reads as "stuck on"/buggy rather
+        // than a subtle fidelity choice. Now matches CombustionEngineBlockEntity's own equivalent behavior
+        // exactly: losing redstone power halts everything immediately, no lingering burn-down.
+        if (!redstonePowered) {
+            burnTime = 0;
+            return;
+        }
+        if (burnTime <= 0) {
             ItemStack stack = fuelSlot.getItem(0);
             int fuelValue = stack.isEmpty() ? 0 : stack.getBurnTime(null, level.fuelValues());
             if (fuelValue > 0) {
@@ -112,6 +123,17 @@ public class StirlingEngineBlockEntity extends EngineBlockEntity implements Menu
     @Override
     protected long getMaxPowerExtracted() {
         return Config.ENGINE_STIRLING_MAX_PULSE_OUTPUT.get();
+    }
+
+    /** Real bug fixed (2026-08-08, same root cause as {@code RedstoneEngineBlockEntity}'s equivalent override):
+     * {@link #getMaxPowerExtracted} (the pulsed-receiver burst cap, 80 FE) was also being used for continuous
+     * receivers, letting Stirling push a sustained 80 FE/tick into a Quarry/Refinery/Mining Well. Reuses
+     * {@link Config#ENGINE_STIRLING_MIN_OUTPUT} (this tier's own PI-controller floor output, 40) rather than a
+     * new config - a genuinely conservative, already-tuned "what this engine reliably produces" figure, leaving
+     * the higher {@code MAX_OUTPUT}/PI-controller ceiling (120) purely for keeping its own buffer topped off. */
+    @Override
+    protected long getSustainedFePerTick() {
+        return Config.ENGINE_STIRLING_MIN_OUTPUT.get();
     }
 
     @Override

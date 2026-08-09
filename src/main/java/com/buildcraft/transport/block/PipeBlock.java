@@ -213,6 +213,31 @@ public class PipeBlock extends Block implements EntityBlock {
         return withConnection(state, level, pos, direction);
     }
 
+    /**
+     * Real bug found and fixed (2026-08-03 QC pass): {@link #getStateForPlacement} runs BEFORE this pipe's own
+     * {@link PipeBlockEntity} exists, so {@code canConnectPipes}'s {@code selfBehaviour} lookup returns null at
+     * that point - for a "Separate"-family material (Cobblestone/Stone/Quartz, see {@code PassiveBehaviour}),
+     * this made the connectivity check silently skip the self-side material check entirely and fall through to
+     * an existing neighbor's own "connects freely" answer (meant for non-grouped materials like Gold, not for
+     * "I don't know my own material yet"), producing a one-sided visual bug: a newly-placed Stone pipe's arm
+     * would show connected toward an existing Cobblestone pipe, while Cobblestone's own arm (recomputed
+     * correctly via {@code updateShape} once its neighbor notification fires, by which point Stone's OWN block
+     * entity legitimately exists) correctly refused. Recomputing every direction here - after the block entity
+     * has actually been created - re-evaluates using the pipe's real, resolvable behaviour instead of the
+     * placement-time guess, self-correcting whatever {@link #getStateForPlacement} got wrong.
+     */
+    @Override
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, net.minecraft.world.entity.@Nullable LivingEntity placer, net.minecraft.world.item.ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        BlockState corrected = state;
+        for (Direction dir : Direction.values()) {
+            corrected = withConnection(corrected, level, pos, dir);
+        }
+        if (corrected != state) {
+            level.setBlock(pos, corrected, 3);
+        }
+    }
+
     private static BlockState withConnection(BlockState state, LevelReader level, BlockPos pos, Direction dir) {
         return state.setValue(connectedProperty(dir), isConnectable(level, pos, dir))
                 .setValue(extendedProperty(dir), isContainerNeighbor(level, pos, dir));
@@ -223,12 +248,42 @@ public class PipeBlock extends Block implements EntityBlock {
      * explicitly opts in via {@link com.buildcraft.transport.pipe.PipeConnectable} (blocks like the Quarry that
      * push items out on their own schedule rather than exposing real item storage - see that interface's
      * javadoc for why a capability check alone isn't enough to connect to those).
+     * <p>
+     * Real feature (not a source port - user-requested design, replacing the standalone "Blocker" pluggable
+     * item real source has): a face the player has wrench-blocked (see {@code PipeBlockEntity.isFaceBlocked}/
+     * {@code toggleFaceBlocked}) is never connectable, overriding whatever the neighbor otherwise is. Only ever
+     * settable against a CONTAINER neighbor, by design (see {@code PipeBlockEntity.cycleBlockedFace}'s javadoc
+     * for why pipe-to-pipe blocking was deliberately dropped) - so this check alone is sufficient, no matching
+     * check against a neighbor pipe's own blocked set is needed.
      */
     public static boolean isConnectable(LevelReader level, BlockPos pos, Direction direction) {
+        if (isFaceBlocked(level, pos, direction)) {
+            return false;
+        }
         if (level.getBlockEntity(pos.relative(direction)) instanceof PipeBlockEntity neighborPipe) {
             return canConnectPipes(level, pos, neighborPipe);
         }
         return isContainerNeighbor(level, pos, direction);
+    }
+
+    private static boolean isFaceBlocked(LevelReader level, BlockPos pos, Direction direction) {
+        return level.getBlockEntity(pos) instanceof PipeBlockEntity self && self.isFaceBlocked(direction);
+    }
+
+    /** Recomputes and applies just one direction's CONNECTED/EXTENDED properties - used by
+     * {@code PipeBlockEntity.toggleFaceBlocked} to refresh both the toggled pipe's own blockstate and, for a
+     * pipe-to-pipe face, the neighbor's matching opposite-face state, without needing a full neighbor-change
+     * event (toggling is a block-entity-only change, not a real block placement/removal vanilla would otherwise
+     * notify neighbors about on its own). */
+    public static void refreshConnection(Level level, BlockPos pos, Direction dir) {
+        BlockState state = level.getBlockState(pos);
+        if (!(state.getBlock() instanceof PipeBlock)) {
+            return;
+        }
+        BlockState updated = withConnection(state, level, pos, dir);
+        if (updated != state) {
+            level.setBlockAndUpdate(pos, updated);
+        }
     }
 
     /**

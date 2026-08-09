@@ -71,6 +71,12 @@ import com.buildcraft.factory.FactoryContent;
  * right-click) to pull from it. Simpler, and this pump's own tank is genuinely just storage either way.
  */
 public class PumpBlockEntity extends MinerBlockEntity {
+    public static boolean DEBUG_LOG = true;
+    private long debugFeAccum = 0;
+    private int debugBucketsAccum = 0;
+    private long debugTotalBucketsFilled = 0;
+    private long debugTotalWorldBlocksRemoved = 0;
+
     private static final Direction[] SEARCH_DIRECTIONS =
             { Direction.UP, Direction.NORTH, Direction.SOUTH, Direction.WEST, Direction.EAST };
 
@@ -95,6 +101,17 @@ public class PumpBlockEntity extends MinerBlockEntity {
 
     public ResourceHandler<FluidResource> getFluidHandler() {
         return tank;
+    }
+
+    private void logPumpDebug(Level level, BlockPos pos) {
+        if (DEBUG_LOG && level.getGameTime() % 100 == 0) {
+            BuildCraft.LOGGER.info(
+                    "[PUMP_DEBUG] pos={} stored={}/{} FE consumed last 100t={} FE ({}/t avg) bucketsDrained last 100t={} tank={}/{} mB",
+                    pos, energy.getAmountAsLong(), Config.PUMP_ENERGY_CAPACITY.get(), debugFeAccum, debugFeAccum / 100.0,
+                    debugBucketsAccum, tank.getAmountAsLong(0), Config.PUMP_TANK_CAPACITY.get());
+            debugFeAccum = 0;
+            debugBucketsAccum = 0;
+        }
     }
 
     @Override
@@ -130,6 +147,7 @@ public class PumpBlockEntity extends MinerBlockEntity {
         }
 
         if (tank.getAmountAsLong(0) > (long) Config.PUMP_TANK_CAPACITY.get() / 2) {
+            logPumpDebug(level, pos);
             return;
         }
 
@@ -141,27 +159,43 @@ public class PumpBlockEntity extends MinerBlockEntity {
                     tx.commit();
                 }
                 progress += extracted;
+                debugFeAccum += extracted;
             }
             if (progress < target) {
+                logPumpDebug(level, pos);
                 return;
             }
             FluidState fluidState = level.getFluidState(currentPos);
             if (fluidState.isSource() && canDrain(fluidState)) {
                 FluidResource resource = FluidResource.of(fluidState.getType());
+                boolean tankGained = false;
                 try (Transaction tx = Transaction.openRoot()) {
                     int filled = tank.insert(0, resource, FluidType.BUCKET_VOLUME, tx);
                     if (filled > 0) {
                         tx.commit();
+                        debugBucketsAccum++;
+                        debugTotalBucketsFilled++;
+                        tankGained = true;
                     }
                 }
                 progress = 0;
+                logPumpDebug(level, pos);
                 if (isInfiniteWaterSource && Config.PUMP_CONSUMES_WATER.get()) {
                     isInfiniteWaterSource = false;
                 }
+                boolean worldBlockRemoved = false;
                 if (!isInfiniteWaterSource) {
                     level.setBlock(currentPos, Blocks.AIR.defaultBlockState(), 3);
+                    worldBlockRemoved = true;
+                    debugTotalWorldBlocksRemoved++;
                     reachable.remove(currentPos);
                     nextPos();
+                }
+                if (DEBUG_LOG) {
+                    BuildCraft.LOGGER.info(
+                            "[PUMP_DUPE_CHECK] pos={} drainedAt={} fluid={} tankGained={} worldBlockRemoved={} isInfiniteWaterSource={} totalBucketsFilled={} totalWorldBlocksRemoved={}",
+                            pos, currentPos, fluidState.getType(), tankGained, worldBlockRemoved, isInfiniteWaterSource,
+                            debugTotalBucketsFilled, debugTotalWorldBlocksRemoved);
                 }
                 return;
             }
@@ -219,6 +253,7 @@ public class PumpBlockEntity extends MinerBlockEntity {
         }
         boolean isWater = !Config.PUMP_CONSUMES_WATER.get() && queueFluid.isSame(Fluids.WATER);
         long maxDistSq = (long) Config.PUMP_MAX_DISTANCE.get() * Config.PUMP_MAX_DISTANCE.get();
+        boolean hitSearchLimit = false;
 
         List<BlockPos> frontier = new ArrayList<>();
         frontier.add(seedPos);
@@ -230,6 +265,11 @@ public class PumpBlockEntity extends MinerBlockEntity {
                 for (Direction dir : SEARCH_DIRECTIONS) {
                     BlockPos neighbor = current.relative(dir);
                     if (neighbor.distSqr(seedPos) > maxDistSq) {
+                        // The flood-fill would have kept expanding past PUMP_MAX_DISTANCE here - the lake
+                        // genuinely continues beyond the pump's search radius, not just "ran out of oil".
+                        if (!level.getFluidState(neighbor).isEmpty() && level.getFluidState(neighbor).getType().isSame(queueFluid)) {
+                            hitSearchLimit = true;
+                        }
                         continue;
                     }
                     if (!checked.add(neighbor)) {
@@ -252,6 +292,12 @@ public class PumpBlockEntity extends MinerBlockEntity {
                 }
             }
             frontier = next;
+        }
+        if (DEBUG_LOG) {
+            BuildCraft.LOGGER.info(
+                    "[PUMP_FLOODFILL_DEBUG] pos={} seed={} fluid={} reachableTiles={} realSourcesFound={} maxDistance={} hitSearchLimit={} isInfiniteWaterSource={}",
+                    worldPosition, seedPos, queueFluid, reachable.size(), queue.size(), Config.PUMP_MAX_DISTANCE.get(),
+                    hitSearchLimit, isInfiniteWaterSource);
         }
     }
 }

@@ -40,12 +40,26 @@ public class WrenchItem extends Item {
             if (handled) {
                 return InteractionResult.CONSUME;
             }
+            // Real feature, not a source port (replaces source's standalone "Blocker" pluggable item, declined
+            // by user in favor of this): a plain (non-sneak) wrench click on a tier that doesn't already consume
+            // it (every tier except Iron/Wood's directional click) cycles the pipe's own per-face blocked state
+            // instead - doesn't depend on which exact face was clicked at all (see PipeBlockEntity
+            // .cycleBlockedFace's javadoc for why: precisely raycasting a specific arm is unreliable). Sneak-click
+            // keeps its existing cycle-only meaning (Iron/Wood), unchanged.
+            if (!context.isSecondaryUseActive()) {
+                pipe.cycleBlockedFace(level);
+                return InteractionResult.CONSUME;
+            }
         }
         if (blockEntity instanceof FluidPipeBlockEntity fluidPipe) {
             boolean handled = context.isSecondaryUseActive()
                     ? fluidPipe.onWrenchClick(null)
                     : fluidPipe.onWrenchClick(context.getClickedFace());
             if (handled) {
+                return InteractionResult.CONSUME;
+            }
+            if (!context.isSecondaryUseActive()) {
+                fluidPipe.cycleBlockedFace(level);
                 return InteractionResult.CONSUME;
             }
         }

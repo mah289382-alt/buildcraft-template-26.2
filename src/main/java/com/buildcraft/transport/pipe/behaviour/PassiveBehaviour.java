@@ -45,11 +45,22 @@ public record PassiveBehaviour(int ticksPerPhase, @Nullable String separateGroup
      * (non-null group), only connect to another pipe that's ALSO Separate-family AND has the exact same group;
      * connects freely to anything non-Separate (Gold, Iron, Void, ...). A non-Separate instance (Gold) always
      * connects freely, matching the original never overriding {@code canConnect} at all.
+     * <p>
+     * Real bug found and fixed (2026-08-03 QC pass, see {@code PipeBlock.setPlacedBy}'s own javadoc for the full
+     * story): {@code other} can genuinely be {@code null} - {@code PipeBlock.canConnectPipes} passes it when a
+     * pipe's own behaviour isn't resolvable yet (mid-placement, before its block entity exists). The old code
+     * treated a null {@code other} the same as "a non-Separate material" and connected freely - wrong for a
+     * Separate-family material specifically, since "I don't know what's over there yet" must NOT be assumed
+     * compatible. Now explicitly conservative: unknown means refuse, not connect - matches this method's own
+     * safe default and gets corrected for real once the placing pipe's own block entity exists anyway.
      */
     @Override
-    public boolean canConnectToPipe(PipeBehaviour other) {
+    public boolean canConnectToPipe(@Nullable PipeBehaviour other) {
         if (separateGroup == null) {
             return true;
+        }
+        if (other == null) {
+            return false;
         }
         if (other instanceof PassiveBehaviour otherPassive && otherPassive.separateGroup != null) {
             return separateGroup.equals(otherPassive.separateGroup);

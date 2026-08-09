@@ -423,7 +423,15 @@ public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBloc
         boolean renderY = frameMax.getY() > frameMin.getY();
         boolean renderZ = frameMax.getZ() > frameMin.getZ();
 
-        double inset = 1.0 / 16.0;
+        // Real bug fixed (2026-08-08): this was 1/16 (0.0625), meant to keep each edge's own length shy of the
+        // corner so two perpendicular edges' caps don't poke into each other. But the actual collision risk is
+        // between an edge's LENGTH-wise start and the OTHER edge's CROSS-SECTION half-width at that corner - for
+        // STRIPES_WRITE that's heightPx()/2 * STRIPES_RENDER_SCALE = 1 * (1/16.05) = 0.06231, just 0.0002 blocks
+        // narrower than the old inset. That's nowhere near enough margin for depth-buffer precision at any real
+        // render distance - the two surfaces were close enough to genuinely swap depth-test winners frame to
+        // frame as the camera moved, which is exactly what z-fighting flicker looks like. A comfortably larger
+        // gap (double the cross-section width) removes the ambiguity outright.
+        double inset = 2.0 / 16.0;
         double lx0 = minX + inset, lx1 = maxX - inset;
         double ly0 = minY + inset, ly1 = maxY - inset;
         double lz0 = minZ + inset, lz1 = maxZ - inset;
@@ -701,6 +709,42 @@ public class QuarryBlockEntityRenderer implements BlockEntityRenderer<QuarryBloc
         if (min == null || max == null) {
             return new AABB(blockEntity.getBlockPos());
         }
-        return new AABB(min.getX(), min.getY(), min.getZ(), max.getX() + 1, max.getY() + 1, max.getZ() + 1);
+        // Real bug fixed (2026-08-08): frameMin/frameMax's own Y-range is just the frame POSTS' height (a few
+        // blocks near the top, per QuarryBlockEntity.initArea - Config.QUARRY_FRAME_HEIGHT), not the drill's
+        // full working range. The vertical connector rod + drill bit routinely extend far below frameMin.getY()
+        // as the Quarry digs deeper (down to mineMin.getY(), which can reach the world's min build height).
+        // Frustum.isVisible(AABB) tests the WHOLE box at once - from camera angles where only that deep
+        // connector/drill geometry would be on-screen but the shallow frame-height slice genuinely isn't, the
+        // box failed the test and the ENTIRE gantry (frame crosshair AND connector rod together, not just the
+        // rod) vanished, since submit() is all-or-nothing per block entity. Extending the box's min Y down to
+        // the real deepest reachable point fixes this without weakening the fine-grained test elsewhere.
+        BlockPos mineMin = blockEntity.getMineMin();
+        int minY = mineMin != null ? Math.min(min.getY(), mineMin.getY()) : min.getY();
+        return new AABB(min.getX(), minY, min.getZ(), max.getX() + 1, max.getY() + 1, max.getZ() + 1);
+    }
+
+    /** Real bug fixed (2026-08-07): {@link #getRenderBoundingBox} alone is NOT enough to stop the gantry from
+     * vanishing when the Quarry's own block leaves view - confirmed by reading {@code LevelExtractor} and
+     * {@code BlockEntityRenderDispatcher} directly. There are TWO separate culling layers: (1) a coarse, per-
+     * CHUNK-SECTION pass ({@code LevelExtractor.extractVisibleBlockEntities} only even considers block entities
+     * belonging to a section currently in {@code visibleSections()} - this ignores any AABB override entirely,
+     * since it runs before {@code getRenderBoundingBox} is ever consulted, and it's keyed to the Quarry BLOCK's
+     * own home section, not the gantry's real drawn extent); (2) the fine per-block-entity frustum test against
+     * {@link #getRenderBoundingBox} (already correctly overridden above). Fixing (2) alone only helps once (1)
+     * has already let the block entity through - if the player looks away enough that the Quarry's own 16x16x16
+     * home section drops out of {@code visibleSections()}, the whole gantry disappears regardless, even while
+     * large parts of it (per the frame's real extent) are still genuinely on-screen.
+     * <p>
+     * {@code shouldRenderOffScreen()} is vanilla's own purpose-built bypass for exactly this (confirmed via
+     * {@code ClientLevel.onBlockEntityAdded}: any renderer returning {@code true} here gets its block entity
+     * added to a separate {@code globallyRenderedBlockEntities} set, extracted every frame independent of section
+     * visibility - {@code BlockEntityRenderDispatcher.tryExtractRenderState} then STILL runs the real
+     * {@link #getRenderBoundingBox} frustum test against it, so this doesn't disable culling, it just moves the
+     * Quarry out of the coarse section-based path and into the fine, real-extent-based one). Default {@code
+     * getViewDistance()} (64 blocks, unmodified here) still caps how far from the CAMERA the Quarry's own anchor
+     * block may be before this stops applying - untouched since no observed Quarry size has needed more. */
+    @Override
+    public boolean shouldRenderOffScreen() {
+        return true;
     }
 }
