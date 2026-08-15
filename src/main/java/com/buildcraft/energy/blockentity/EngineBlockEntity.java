@@ -70,6 +70,10 @@ public abstract class EngineBlockEntity extends BlockEntity {
     protected boolean redstonePowered = false;
     // Diagnostic-only: last tick's isPumping() result, for [ENGINE_PUMPING_DEBUG]'s transition logging.
     private boolean prevPumping = false;
+    // Diagnostic-only: last tick's PowerStage and the game-time it was first entered, for
+    // [ENGINE_STAGE_DEBUG]'s transition logging (real elapsed time per stage, not just a snapshot).
+    private @Nullable PowerStage prevStage = null;
+    private long stageEnteredAt = 0;
 
     /** Real perf fix (2026-07-31 FPS/TPS audit): {@link #pushPower} runs every server tick this engine has power
      * to send, and the raw {@code level.getCapability(...)} it used to call directly re-walks the target block's
@@ -93,9 +97,31 @@ public abstract class EngineBlockEntity extends BlockEntity {
     /** Produces power into {@link #power} (and updates any tier-specific fuel state) - only called outside OVERHEAT. */
     protected abstract void burn(Level level, BlockPos pos, BlockState state);
 
-    /** Whether the piston should currently be actively pumping (drives forward vs. decaying progress). */
+    /** Real source (confirmed 2026-08-12): most tiers put ALL their fuel-consuming logic in {@code burn()},
+     * which real source's own base class only calls outside OVERHEAT too - matching this port's default of
+     * skipping {@link #burn} entirely during overheat for every tier. Stirling is the one exception: real
+     * {@code TileEngineStone_BC8} puts its burnTime DECREMENT in {@code engineUpdate()} (called every tick
+     * unconditionally, regardless of overheat) and only the actual power-ADD step behind an inline
+     * {@code getPowerStage() != OVERHEAT} check - meaning a real Stirling engine WASTES its loaded fuel item
+     * while overheated (burnTime still ticks down, just with no power gained), rather than pausing consumption
+     * like {@link #burn} being skipped would otherwise imply. This hook exists so Stirling can replicate that
+     * exact real quirk without changing every other tier's (already-correct) behavior - default no-op. */
+    protected void burnEvenIfOverheated(Level level, BlockPos pos, BlockState state) {
+    }
+
+    /** Whether the piston should currently be actively pumping (drives forward vs. decaying progress). Real
+     * source's actual condition (confirmed 2026-08-12 via the complete TileEngineBase_BC8.java source):
+     * {@code isRedstonePowered && isActive() && getPowerToExtract(false) > 0} - i.e. powered, not in some
+     * tier-specific "penalized" state (Combustion's own penaltyCooling; every other tier's real {@code isActive()}
+     * is unconditionally true), AND actually having real stored power to give. This default (used as-is by
+     * Redstone and Creative, neither of which overrides it) adds the {@code power > 0} check that was previously
+     * missing - safe for both of those tiers since they force their own buffer to exactly {@code redstonePowered
+     * ? max : 0} every tick (so the two conditions were already equivalent for them), but a real, previously-
+     * missing check for any tier whose buffer can legitimately sit at 0 while still powered (e.g. Stirling before
+     * ever burning fuel, or after fully draining) - Combustion has its own override for the extra penaltyCooling
+     * condition real source's isActive() adds for that tier specifically. */
     protected boolean isPumping() {
-        return redstonePowered;
+        return redstonePowered && power > 0;
     }
 
     /**
@@ -108,26 +134,24 @@ public abstract class EngineBlockEntity extends BlockEntity {
     }
 
     /**
-     * Ports {@code TileEngineBase_BC8#maxPowerExtracted()}: the max amount pushable to a receiver in a single
-     * tick - independent of the buffer's total capacity ({@link #getMaxPower()}). Real source ratios
-     * (maxPowerExtracted/getMaxPower, unit-agnostic): Redstone 4/1 (exceeds its own buffer, i.e. no meaningful
-     * throttle - the generic default here), Stirling 100/1000 = 1/10, Iron/Combustion 500/10_000 = 1/20 (both
-     * overridden by their tiers). Without this cap the whole buffer would dump in a single tick as long as the
-     * receiver's own capability accepted it, which source deliberately prevents via this separate per-tick cap.
+     * Ports {@code TileEngineBase_BC8#maxPowerExtracted()}: the max FE pushable to ANY receiver (pulsed or
+     * continuous alike - real source uses ONE cap for both, confirmed 2026-08-11 by reading the real MJ constants
+     * directly via the actual BuildCraftAPI/BuildCraft GitHub source) in a single tick - independent of the
+     * buffer's total capacity ({@link #getMaxPower()}). Real source values, in MJ -> FE at the confirmed real
+     * ratio (1 MJ = 10 FE, from {@code MjRfConversion.DEFAULT_MJ_PER_RF = MjAPI.MJ/10}): Redstone 4 MJ = 40 FE
+     * (exceeds its own 1 MJ/10 FE buffer, i.e. never actually the binding constraint - the generic default here),
+     * Stirling 100 MJ = 1000 FE, Combustion 500 MJ = 5000 FE (both overridden by their tiers). An EARLIER version
+     * of this port split this into two separate numbers (a small "sustained" rate for continuous receivers vs a
+     * larger "burst" rate for pulsed ones), reasoning real source must work that way - it doesn't. Real source's
+     * actual mechanism is simpler and more interesting: ONE cap for everyone, with the tier's own buffer dynamics
+     * doing the rest - Redstone's buffer is force-refilled to its own tiny capacity every tick (so it can never
+     * sustain more than ~1 buffer's worth per tick regardless of this cap), while Stirling/Combustion's buffers
+     * can accumulate well above what they produce per tick, letting them burst at this full cap briefly before
+     * throttling down to their real production rate once the buffer drains - a genuine "engine needs to recover
+     * after a hard push" feel, not achievable with a flat sustained number.
      */
     protected long getMaxPowerExtracted() {
         return getMaxPower();
-    }
-
-    /** The real sustained per-tick delivery cap to a CONTINUOUS (non-pulsed) receiver - e.g. a Quarry, Refinery,
-     * or Mining Well/Pump, which pull every tick rather than once per piston stroke. Deliberately separate from
-     * {@link #getMaxPowerExtracted}, which is a one-time-per-pulse burst cap for {@link PulsedEnergyReceiver}s
-     * only - see {@link #pushPower}'s own javadoc for the real bug this split fixes. Defaults to the pulse cap
-     * for safety/back-compat (the Creative Engine, which has no tier-specific throttle of its own, keeps its
-     * prior unthrottled-by-design behavior); every real fuel-burning tier overrides this with its own genuine
-     * production-rate figure. */
-    protected long getSustainedFePerTick() {
-        return getMaxPowerExtracted();
     }
 
     protected float getPistonSpeed(PowerStage stage) {
@@ -205,12 +229,22 @@ public abstract class EngineBlockEntity extends BlockEntity {
         }
 
         boolean overheat = be.getPowerStage() == PowerStage.OVERHEAT;
+        be.burnEvenIfOverheated(level, pos, state);
         if (!overheat) {
             be.burn(level, pos, state);
         }
         be.updateHeat();
 
         PowerStage stage = be.getPowerStage();
+        if (DEBUG_LOG && stage != be.prevStage) {
+            long ticksInPrevStage = level.getGameTime() - be.stageEnteredAt;
+            com.buildcraft.BuildCraft.LOGGER.info(
+                    "[ENGINE_STAGE_DEBUG] pos={} tier={} stage {} -> {} after {} ticks ({}s) | heat={} power={}",
+                    pos, be.getClass().getSimpleName(), be.prevStage, stage, ticksInPrevStage, ticksInPrevStage / 20.0,
+                    be.heat, be.power);
+            be.prevStage = stage;
+            be.stageEnteredAt = level.getGameTime();
+        }
         float prevProgress = be.progress;
         boolean pumpingNow = be.isPumping();
         if (DEBUG_LOG && pumpingNow != be.prevPumping) {
@@ -271,15 +305,9 @@ public abstract class EngineBlockEntity extends BlockEntity {
     protected void pushPower(Level level, BlockPos pos, BlockState state, boolean justPulsed) {
         // Real bug fixed (2026-08-08, user-reported): this had NO redstonePowered check at all - it pushed
         // whatever was left in the buffer every tick regardless of current signal state, only ever shrinking via
-        // its own consumption here plus the separate flat ENGINE_UNPOWERED_DRAIN_PER_TICK in tick(). For a small
-        // buffer (Redstone, 1000 FE) that decay was fast enough to look instant; for Combustion's 200,000 FE cap
-        // it could keep actively pushing real power - now at getSustainedFePerTick()'s full production rate,
-        // 300-600 FE/tick, since that fix correctly stopped throttling it down - for many seconds after the
-        // redstone signal (and any dust) was already gone, which is exactly the "stays powering / way too much
-        // output" symptom reported: the piston correctly stops animating right away (isPumping() tracks
-        // burnTime/redstonePowered directly), but the buffer kept draining itself into the receiver regardless,
-        // an engine that LOOKS dead while still actively working. An unpowered engine should hold onto (or
-        // slow-drain, via the flat per-tick constant) whatever's left, not keep actively dispatching it.
+        // its own consumption here plus the separate flat ENGINE_UNPOWERED_DRAIN_PER_TICK in tick(). An unpowered
+        // engine should hold onto (or slow-drain, via that flat per-tick constant) whatever's left, not keep
+        // actively dispatching it - a dead-looking engine that's secretly still doing real work.
         if (!redstonePowered || power <= 0) {
             return;
         }
@@ -298,17 +326,11 @@ public abstract class EngineBlockEntity extends BlockEntity {
         if (pulsed && !justPulsed) {
             return;
         }
-        // Real bug fixed (2026-08-08): every tier's own *_MAX_PULSE_OUTPUT config was explicitly documented as
-        // "max FE deliverable in a SINGLE PULSE to a pulsed receiver" (e.g. a Wood pipe), but getMaxPowerExtracted
-        // was being applied here unconditionally to EVERY receiver, pulsed or not - so a continuous receiver
-        // (Quarry, Refinery, Mining Well/Pump) got that same generous burst-per-pulse number delivered EVERY
-        // SINGLE TICK, sustained forever, not just once per piston stroke. That's what let a single Redstone
-        // Engine run a Quarry at near-full speed - confirmed via direct FE/tick log comparisons this session.
-        // getSustainedFePerTick() is the real fix: a separate, genuinely conservative continuous-delivery cap,
-        // used for anything that ISN'T a PulsedEnergyReceiver; getMaxPowerExtracted() now only ever applies to
-        // the actual once-per-stroke pulsed-receiver burst it was documented for.
-        long cap = pulsed ? getMaxPowerExtracted() : getSustainedFePerTick();
-        int toSend = (int) Math.min(Math.min(power, cap), Integer.MAX_VALUE);
+        // Real source (confirmed 2026-08-11 via the actual BuildCraft/BuildCraftAPI GitHub source): ONE cap
+        // (maxPowerExtracted()) applies to every receiver alike, pulsed or continuous - see getMaxPowerExtracted's
+        // own javadoc for the full reasoning (an earlier version of this port split this into two numbers on a
+        // wrong assumption; reverted once the real mechanism was confirmed).
+        int toSend = (int) Math.min(Math.min(power, getMaxPowerExtracted()), Integer.MAX_VALUE);
         try (Transaction tx = Transaction.openRoot()) {
             int inserted = receiver.insert(toSend, tx);
             if (inserted > 0) {

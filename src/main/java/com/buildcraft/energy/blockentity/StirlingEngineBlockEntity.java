@@ -24,12 +24,13 @@ import com.buildcraft.energy.menu.StirlingEngineMenu;
 /**
  * Ports {@code TileEngineStone_BC8}: burns any vanilla furnace-fuel item (coal, planks, blaze rods, lava
  * buckets, ...) via the modern equivalent of {@code TileEntityFurnace.getItemBurnTime} -
- * {@code ItemStack.getBurnTime(RecipeType, FuelValues)} - not a BuildCraft-specific "biofuel" item. A new fuel
- * item only starts burning while redstone-powered (source gates the START of a new burn on the signal, even
- * though an already-burning item keeps burning down regardless per {@code engineUpdate}'s unconditional
- * decrement). Output uses the real PI-controller formula from source (target = 3/8 of the buffer, proportional
+ * {@code ItemStack.getBurnTime(RecipeType, FuelValues)} - not a BuildCraft-specific "biofuel" item. Burning halts
+ * immediately when redstone power is lost (a deliberate DEVIATION from source's own "already-burning fuel keeps
+ * counting down regardless" behavior, made 2026-08-08 per explicit user request - see {@link #burn}'s own
+ * javadoc). Output uses the real PI-controller formula from source (target = 3/8 of the buffer, proportional
  * error + a clamped integral term, clamped between {@link Config#ENGINE_STIRLING_MIN_OUTPUT} and
- * {@link Config#ENGINE_STIRLING_MAX_OUTPUT}) rather than a flat number. Heat is NOT independently tracked here
+ * {@link Config#ENGINE_STIRLING_MAX_OUTPUT} - real values 0.333 MJ/3.33 FE and 1 MJ/10 FE, confirmed 2026-08-11
+ * via the actual BuildCraft GitHub source) rather than a flat number. Heat is NOT independently tracked here
  * either - it uses the generic base-class formula (derived from buffer fill ratio each tick), matching source
  * not overriding {@code updateHeatLevel()} for this tier.
  */
@@ -73,8 +74,20 @@ public class StirlingEngineBlockEntity extends EngineBlockEntity implements Menu
      * doesn't map cleanly onto this case, so fuel items are simply consumed with no remainder produced. A
      * documented scope reduction given the API mismatch.
      */
+    /** No-op: see {@link #burnEvenIfOverheated} - real Stirling's burnTime decrement (unlike every other tier's)
+     * runs regardless of overheat in real source, so all of this tier's fuel logic lives there instead of here. */
     @Override
     protected void burn(Level level, BlockPos pos, BlockState state) {
+    }
+
+    /** Real source (TileEngineStone_BC8.engineUpdate(), confirmed 2026-08-12): burnTime decrements every tick
+     * fuel is loaded, REGARDLESS of overheat - only the power-add step is skipped while overheated (via the
+     * inline {@code getPowerStage() != OVERHEAT} check below), so an overheated Stirling genuinely wastes its
+     * loaded fuel item instead of pausing consumption. Matched here per explicit user request (2026-08-12) after
+     * flagging this as a real, narrow deviation - this port previously paused burnTime entirely during overheat
+     * (skipped the whole hook), preserving fuel instead of wasting it like real source does. */
+    @Override
+    protected void burnEvenIfOverheated(Level level, BlockPos pos, BlockState state) {
         // Real bug fixed (2026-08-08, user-reported): this used to let an already-burning fuel item keep
         // counting down and producing power regardless of CURRENT redstonePowered - only the START of a new
         // burn was gated on it. That was a deliberate, documented port of real source's own behavior, but live
@@ -98,7 +111,9 @@ public class StirlingEngineBlockEntity extends EngineBlockEntity implements Menu
         }
         if (burnTime > 0) {
             burnTime--;
-            power = Math.min(getMaxPower(), power + getCurrentOutput());
+            if (getPowerStage() != PowerStage.OVERHEAT) {
+                power = Math.min(getMaxPower(), power + getCurrentOutput());
+            }
         }
     }
 
@@ -116,24 +131,16 @@ public class StirlingEngineBlockEntity extends EngineBlockEntity implements Menu
         return Mth.clamp(error + errorSum / E_LIMIT_TICKS, minOutput, maxOutput);
     }
 
-    /** See {@link Config#ENGINE_STIRLING_MAX_PULSE_OUTPUT}'s javadoc: a small flat per-pulse cap, not source's
-     * literal 1/10-of-buffer ratio (100MJ/1000MJ) - that ratio permits up to 100 items in one pulse at source's
-     * own mjPerItem=1MJ, which is too large for good pacing at this port's FE scale and also (since heat is a
-     * direct function of buffer-fill ratio) was the direct cause of heat visibly jumping stages per pump. */
+    /** Real source value (confirmed 2026-08-11 via BuildCraftAPI/BuildCraft GitHub source): 100 MJ = 1000 FE at
+     * the real 1 MJ = 10 FE ratio. Unlike Redstone, this genuinely CAN matter here - Stirling's buffer (10,000 FE)
+     * can accumulate well above what {@link #getCurrentOutput} produces per tick (3-10 FE/tick), so a warmed-up
+     * engine can burst at this full cap for a while before throttling down to its real production rate once the
+     * buffer drains - a real "needs to recover after a hard push" dynamic, not achievable with a flat sustained
+     * number (see {@code EngineBlockEntity.getMaxPowerExtracted}'s javadoc for why this port no longer splits
+     * this into two separate values). */
     @Override
     protected long getMaxPowerExtracted() {
         return Config.ENGINE_STIRLING_MAX_PULSE_OUTPUT.get();
-    }
-
-    /** Real bug fixed (2026-08-08, same root cause as {@code RedstoneEngineBlockEntity}'s equivalent override):
-     * {@link #getMaxPowerExtracted} (the pulsed-receiver burst cap, 80 FE) was also being used for continuous
-     * receivers, letting Stirling push a sustained 80 FE/tick into a Quarry/Refinery/Mining Well. Reuses
-     * {@link Config#ENGINE_STIRLING_MIN_OUTPUT} (this tier's own PI-controller floor output, 40) rather than a
-     * new config - a genuinely conservative, already-tuned "what this engine reliably produces" figure, leaving
-     * the higher {@code MAX_OUTPUT}/PI-controller ceiling (120) purely for keeping its own buffer topped off. */
-    @Override
-    protected long getSustainedFePerTick() {
-        return Config.ENGINE_STIRLING_MIN_OUTPUT.get();
     }
 
     @Override

@@ -157,14 +157,30 @@ public class CombustionEngineBlockEntity extends EngineBlockEntity implements Me
         };
     }
 
-    /** 0=fuel, 1=coolant, 2=residue - fill percentage (0-100), for the GUI's tank bars. */
+    /** 0=fuel, 1=coolant, 2=residue - fill level in PERMILLE (0-1000, not 0-100), for the GUI's tank bars.
+     * Real bug fixed (2026-08-10, user-reported "fuel gauge never moves"): the fuel tank genuinely was draining
+     * correctly the whole time (1 mB consumed per burn cycle - confirmed via {@link #burn}), but at
+     * {@link #TANK_CAPACITY}=10,000 mB, 1 mB is only 0.01% - an integer 0-100 percent literally cannot represent
+     * a change that small, so the displayed number (and the 60px-tall bar, at ~0.6%/pixel) looked completely
+     * static for 100+ burn cycles (100+ seconds for Oil, 500+ for refined Fuel) even though real consumption was
+     * happening the entire time. Permille gives 10x the resolution - still coarse, but a visible pixel of
+     * movement now takes ~10x fewer real seconds instead of being invisible for minutes. */
+    public static boolean DEBUG_LOG = true;
+
     public int getTankFillPercent(int tankIndex) {
         FluidStacksResourceHandler tank = switch (tankIndex) {
             case 0 -> fuelTank;
             case 1 -> coolantTank;
             default -> residueTank;
         };
-        return (int) (100 * tank.getAmountAsLong(0) / TANK_CAPACITY);
+        long amount = tank.getAmountAsLong(0);
+        int permille = (int) (1000 * amount / TANK_CAPACITY);
+        if (DEBUG_LOG && tankIndex == 0 && level != null && level.getGameTime() % 20 == 0) {
+            com.buildcraft.BuildCraft.LOGGER.info(
+                    "[COMBUSTION_GUI_DEBUG] pos={} fuelTank amount={}mB permille={} burnTime={} burningRefinedFuel={}",
+                    getBlockPos(), amount, permille, burnTime, burningRefinedFuel);
+        }
+        return permille;
     }
 
     /** The fuel tank accepts EITHER Oil or Fuel (see class javadoc) - the GUI needs to know which one is
@@ -246,13 +262,19 @@ public class CombustionEngineBlockEntity extends EngineBlockEntity implements Me
             return;
         }
         if (burnTime > 0) {
-            // HEAT_PER_FE was calibrated at source's microjoule (MJ) scale, far larger than this port's modest
-            // FE-per-tick numbers - the /100 brings it into a comparable range so heat rises meaningfully over
-            // a normal burn rather than barely at all. Not source-derivable at this unit scale, flagged.
+            // Real source formula (TileEngineIron_BC8.burn(), confirmed 2026-08-11 via the actual BuildCraft
+            // GitHub source): heat += powerPerCycle(µJ) * HEAT_PER_MJ / MjAPI.MJ. Since this port's fePerTick is
+            // in FE (= real MJ x10, confirmed real ratio 1 MJ = 10 FE), converting back to source's own MJ scale
+            // means dividing by 10 first, THEN applying HEAT_PER_FE (the same numeric constant as source's
+            // HEAT_PER_MJ, reused as-is since it's a dimensionless ratio) - i.e. fePerTick * HEAT_PER_FE / 10.0,
+            // not the earlier undocumented /100.0 guess (confirmed too slow by live testing: heat barely moved
+            // after a minute of sustained full-power burning). Verified against real numbers: crude Oil (30
+            // FE/tick = 3 MJ/tick real) -> 30*0.0023/10 = 0.0069 heat/tick, matching source's own real Oil-burn
+            // heat gain exactly.
             int fePerTick = burningRefinedFuel
                     ? Config.ENGINE_COMBUSTION_FUEL_FE_PER_TICK.get()
                     : Config.ENGINE_COMBUSTION_OIL_FE_PER_TICK.get();
-            heat = Math.min(MAX_HEAT, heat + fePerTick * HEAT_PER_FE / 100.0);
+            heat = Math.min(MAX_HEAT, heat + fePerTick * HEAT_PER_FE / 10.0);
         }
         if (heat > IDEAL_HEAT) {
             long coolantAmount = coolantTank.getAmountAsLong(0);
@@ -314,26 +336,46 @@ public class CombustionEngineBlockEntity extends EngineBlockEntity implements Me
         return stack.is(FactoryFluids.OIL_BUCKET.get()) || stack.is(FactoryFluids.FUEL_BUCKET.get()) || stack.is(Items.WATER_BUCKET);
     }
 
-    /** See {@link Config#ENGINE_COMBUSTION_MAX_PULSE_OUTPUT}'s javadoc: a small flat per-pulse cap, not source's
-     * literal 1/20-of-buffer ratio - same reasoning as {@link StirlingEngineBlockEntity#getMaxPowerExtracted}. */
+    /** Real source value (confirmed 2026-08-11 via BuildCraftAPI/BuildCraft GitHub source): 500 MJ = 5000 FE at
+     * the real 1 MJ = 10 FE ratio. Same "buffer can burst above production rate, then throttles down" dynamic as
+     * Stirling (see {@link StirlingEngineBlockEntity#getMaxPowerExtracted}'s javadoc) - Combustion's buffer
+     * (100,000 FE) dwarfs its real production rate (30-40 FE/tick), so a well-charged engine can sustain this
+     * full 5000 FE/tick burst for a while before draining down to its true production-limited pace. */
     @Override
     protected long getMaxPowerExtracted() {
         return Config.ENGINE_COMBUSTION_MAX_PULSE_OUTPUT.get();
     }
 
-    // REVERTED (2026-08-08, user-reported): a getSustainedFePerTick() override reusing the raw 300/600 FE/tick
-    // production rate briefly lived here, reasoning Combustion should be the powerhouse tier. Live testing
-    // showed that was way too far - a single Combustion Engine let a Quarry mine 38-50 blocks per 5 seconds,
-    // "9000% work." No override at all means this now inherits the base class default
-    // (getSustainedFePerTick() -> getMaxPowerExtracted(), i.e. the existing, already-tuned 160 FE/tick pulse
-    // cap above) - the same number continuous receivers effectively got before any of this session's engine
-    // changes, still clearly the strongest tier (10 Redstone / 40 Stirling / 160 Combustion) without being
-    // absurd. The real fix that mattered (gating pushPower on redstonePowered, so a lost signal actually stops
-    // delivery instead of draining a huge stored buffer) is untouched.
-
+    /** Real bug fixed (2026-08-12, confirmed via the actual complete TileEngineIron_BC8.java source): this used
+     * to tie pumping directly to {@code burnTime>0} - meaning the piston stopped the INSTANT fuel/burnTime
+     * emptied, even if there was tons of stored power (up to 100,000 FE) left in the buffer. Real source's
+     * actual pumping condition ({@code TileEngineBase_BC8.update()}: {@code isRedstonePowered && isActive() &&
+     * getPowerToExtract(false) > 0}) has nothing to do with whether fuel/burnTime is currently active - it pumps
+     * (and keeps sending power to a receiver) as long as it's powered, not in the post-signal-loss penalty
+     * cooldown, AND still has real stored power to give. Running out of fuel while a full buffer remains is
+     * genuinely NOT supposed to stop the engine immediately in real source - it keeps draining its reserve,
+     * exactly the "why doesn't it turn off when fuel hits 0" behavior a player reported seeing. This doesn't
+     * replicate source's exact receiver-lookup (that lives in {@link #pushPower}, not called from here), but
+     * matches its real spirit: powered, not penalized, and something left to give. */
     @Override
     protected boolean isPumping() {
-        return burnTime > 0;
+        return redstonePowered && penaltyCooling <= 0 && power > 0;
+    }
+
+    /** Real source (TileEngineIron_BC8.java, confirmed 2026-08-12): Combustion's own piston-speed curve is
+     * completely different from the generic base-class curve (0.02/0.04/0.08/0.12) - a much flatter
+     * 0.04/0.05/0.06/0.07 across BLUE/GREEN/YELLOW/RED, 0 at OVERHEAT. This override never existed before, so
+     * Combustion was silently using the wrong (steeper, generic) curve the whole time - a real, confirmed bug,
+     * not a documented deviation. */
+    @Override
+    protected float getPistonSpeed(PowerStage stage) {
+        return switch (stage) {
+            case BLUE -> 0.04f;
+            case GREEN -> 0.05f;
+            case YELLOW -> 0.06f;
+            case RED -> 0.07f;
+            case OVERHEAT -> 0f;
+        };
     }
 
     @Override

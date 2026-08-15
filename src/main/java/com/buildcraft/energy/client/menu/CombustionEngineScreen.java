@@ -38,6 +38,11 @@ public class CombustionEngineScreen extends AbstractContainerScreen<CombustionEn
     private static final Identifier FUEL_STILL = Identifier.fromNamespaceAndPath(BuildCraft.MODID, "textures/block/fuel_still.png");
     private static final Identifier WATER_STILL = Identifier.fromNamespaceAndPath("minecraft", "textures/block/water_still.png");
     private static final int FLUID_TEXTURE_HEIGHT = 512; // 32 animation frames of 16x16 each - only frame 0 is used here
+    // Vanilla's water_still.png is an uncoloured greyscale base texture - real Minecraft always tints it via a
+    // separate biome-water-color lookup (BiomeColors), never blits it raw. 0x3F76E4 is vanilla's own classic
+    // default/swamp-less water tint (matches what most biomes render as), the same constant many mods use for
+    // a non-biome-aware water render like this one.
+    private static final int WATER_TINT = 0xFF3F76E4;
     private static final int TANK_EMPTY_COLOR = 0xFF4A4A4A;
     private static final int RESIDUE_COLOR = 0xFF6B5A3C;
     private static final int TANK_Y = 18;
@@ -69,8 +74,8 @@ public class CombustionEngineScreen extends AbstractContainerScreen<CombustionEn
             case 2 -> FUEL_STILL;
             default -> OIL_STILL;
         };
-        drawFluidTank(graphics, x + TANK_X[0], y + TANK_Y, this.menu.getFuelPercent(), fuelTexture);
-        drawFluidTank(graphics, x + TANK_X[1], y + TANK_Y, this.menu.getCoolantPercent(), WATER_STILL);
+        drawFluidTank(graphics, x + TANK_X[0], y + TANK_Y, this.menu.getFuelPercent(), fuelTexture, -1);
+        drawFluidTank(graphics, x + TANK_X[1], y + TANK_Y, this.menu.getCoolantPercent(), WATER_STILL, WATER_TINT);
         drawTank(graphics, x + TANK_X[2], y + TANK_Y, this.menu.getResiduePercent(), RESIDUE_COLOR);
 
         drawSlotBorder(graphics, x + BUCKET_SLOT_X, y + BUCKET_SLOT_Y);
@@ -78,15 +83,21 @@ public class CombustionEngineScreen extends AbstractContainerScreen<CombustionEn
 
     /** Real texture-based tank fill: tiles the fluid's still-texture sprite (first animation frame only)
      * across the fill area, scissored to the actual fill height, matching source's real
-     * {@code FluidRenderer.drawFluidForGui} technique instead of a flat colour. */
-    private void drawFluidTank(GuiGraphicsExtractor graphics, int x, int y, int percent, Identifier fluidTexture) {
+     * {@code FluidRenderer.drawFluidForGui} technique instead of a flat colour.
+     * <p>
+     * Real bug fixed (2026-08-12, user-reported "water is colored grey"): vanilla's {@code water_still.png} is
+     * an uncoloured greyscale base texture by design - real Minecraft always tints it blue separately (via
+     * {@code BiomeColors}' water-color lookup) wherever it's drawn, it's never blitted raw. Oil/Fuel's own
+     * textures are already fully coloured (no tint needed, hence {@code -1}/opaque-white = no-op tint for those
+     * call sites), but water needs an explicit tint colour passed here or it renders as its true raw grey. */
+    private void drawFluidTank(GuiGraphicsExtractor graphics, int x, int y, int permille, Identifier fluidTexture, int tintColor) {
         graphics.fill(x, y, x + TANK_W, y + TANK_H, TANK_EMPTY_COLOR);
-        int filledHeight = TANK_H * Math.max(0, Math.min(100, percent)) / 100;
+        int filledHeight = TANK_H * Math.max(0, Math.min(1000, permille)) / 1000;
         if (filledHeight > 0) {
             int fillTop = y + TANK_H - filledHeight;
             graphics.enableScissor(x, fillTop, x + TANK_W, y + TANK_H);
             for (int tileY = y + TANK_H; tileY > fillTop; tileY -= 16) {
-                graphics.blit(RenderPipelines.GUI_TEXTURED, fluidTexture, x, tileY - 16, 0, 0, TANK_W, 16, TANK_W, FLUID_TEXTURE_HEIGHT);
+                graphics.blit(RenderPipelines.GUI_TEXTURED, fluidTexture, x, tileY - 16, 0, 0, TANK_W, 16, TANK_W, FLUID_TEXTURE_HEIGHT, tintColor);
             }
             graphics.disableScissor();
         }
@@ -103,9 +114,9 @@ public class CombustionEngineScreen extends AbstractContainerScreen<CombustionEn
         graphics.fill(x + SLOT_SIZE - 1, y, x + SLOT_SIZE, y + SLOT_SIZE, SLOT_BORDER_COLOR);
     }
 
-    private void drawTank(GuiGraphicsExtractor graphics, int x, int y, int percent, int fillColor) {
+    private void drawTank(GuiGraphicsExtractor graphics, int x, int y, int permille, int fillColor) {
         graphics.fill(x, y, x + TANK_W, y + TANK_H, TANK_EMPTY_COLOR);
-        int filledHeight = TANK_H * Math.max(0, Math.min(100, percent)) / 100;
+        int filledHeight = TANK_H * Math.max(0, Math.min(1000, permille)) / 1000;
         if (filledHeight > 0) {
             graphics.fill(x, y + TANK_H - filledHeight, x + TANK_W, y + TANK_H, fillColor);
         }

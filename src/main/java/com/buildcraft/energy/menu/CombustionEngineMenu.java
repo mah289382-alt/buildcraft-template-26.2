@@ -32,8 +32,8 @@ import com.buildcraft.energy.blockentity.CombustionEngineBlockEntity;
  * protocol ({@code ServerboundContainerButtonClickPacket} -> {@link #clickMenuButton}), the same mechanism
  * {@code WoodDiamondFilterMenu} uses for its mode-cycle button.
  * <p>
- * Tank fill levels are synced to the client via a small {@link ContainerData} (3 ints, 0-100% each) for the
- * screen's bars.
+ * Tank fill levels are synced to the client via a small {@link ContainerData} (3 ints, 0-1000 PERMILLE each, not
+ * percent - see {@link CombustionEngineBlockEntity#getTankFillPercent}'s javadoc for why) for the screen's bars.
  */
 public class CombustionEngineMenu extends AbstractContainerMenu {
     private static final int PLAYER_INV_Y = 95;

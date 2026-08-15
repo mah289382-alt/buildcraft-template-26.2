@@ -427,7 +427,18 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
                 }
             }
             long needed = currentTaskObj.getRequiredPowerThisTick();
-            int want = (int) Math.max(0, Math.min(budget, needed));
+            // Real source (TileQuarry.java:561-570, quarryTaskPowerDivisor, confirmed 2026-08-11 via the actual
+            // BuildCraft GitHub source): each ADDITIONAL task completed within the same tick (i>0) costs
+            // progressively more raw power for the same effective progress - extracting nNeeded from the
+            // battery only actually counts as `added` toward the task, where added < nNeeded once i>0. This is
+            // real source's actual speed-limiting mechanic for a well-powered Quarry (a genuine omission in this
+            // port before now, not a deliberate deviation) - without it, abundant power alone lets
+            // QUARRY_MAX_TASKS_PER_TICK tasks complete every tick at full efficiency; with it, completing more
+            // than one task per tick gets progressively less power-efficient. divisor=0 disables it (added=extracted).
+            int divisor = Config.QUARRY_TASK_POWER_DIVISOR.get();
+            long nNeeded = divisor > 0 ? needed * (divisor + i) / divisor : needed;
+            long leftover = divisor > 0 ? (needed * (divisor + i)) % divisor : 0;
+            int want = (int) Math.max(0, Math.min(budget, nNeeded));
             if (want <= 0) {
                 break;
             }
@@ -445,8 +456,12 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
             changed = true;
             hasStartedWork = true;
             debugFeAccum += extracted;
+            long added = divisor > 0 ? (long) extracted * divisor / (divisor + i) : extracted;
+            if (leftover > 0) {
+                added++;
+            }
             MiningTask finishedTask = currentTaskObj;
-            boolean done = currentTaskObj.addPower(extracted);
+            boolean done = currentTaskObj.addPower(added);
             if (done) {
                 if (finishedTask instanceof BreakBlockTask task && !task.isMining) {
                     frameQueue.pollFirst();
@@ -517,13 +532,23 @@ public class QuarryBlockEntity extends BlockEntity implements PipeConnectable {
         skipUnminable(level);
         BlockPos current = boxIterator.current;
         if (current == null) {
-            finished = true;
-            if (level instanceof ServerLevel serverLevel) {
-                releaseChunks(serverLevel);
-            }
-            BuildCraft.LOGGER.info("Quarry at {}: finished. Mined area [{} .. {}], {} frame blocks placed.",
-                    worldPosition, mineMin, mineMax, placedFramePositions.size());
-            setChanged();
+            // Real bug fixed (2026-08-11, user-reported: Quarry "finished" at a cave/mineshaft without reaching
+            // bedrock). Confirmed via real TileQuarry.java: canMoveDownTo requires the ENTIRE column above a
+            // candidate position to be air/water - any exposed lava (or other non-air/water obstruction) in a
+            // natural cave permanently fails that check for everything below it in that column, forever, since
+            // there's no obstacle-clearing task for the mining area's interior (only the frame's own border has
+            // one). That's real, faithfully-ported BuildCraft behavior, not a port bug on its own - confirmed
+            // real source has the exact same canMine/canMoveThrough/canMoveDownTo trio and can get stuck the
+            // same way. The actual regression was here: real source's boxIterator running out of positions
+            // (BoxIterator.hasFinished()) just silently skips that tick's work and keeps re-checking forever -
+            // it has NO "finished" concept at all. This port added one anyway (persisted, chunk-releasing,
+            // logged as a clean completion) keyed off the exact same "iterator exhausted" signal that can't
+            // tell "genuinely mined everything" apart from "permanently stuck on an obstruction it can never
+            // clear on its own." A stalled Quarry was falsely announcing success and releasing its chunks
+            // while most of its area was still untouched. Matching source exactly: do nothing this tick, no
+            // terminal state, chunks stay force-loaded (same tradeoff real BuildCraft always had) - if the
+            // iterator later gets any further positions via {@link #initArea}/frame changes, work resumes
+            // normally; a genuinely fully-mined Quarry likewise just idles harmlessly forever, same as source.
             return;
         }
         Vec3 currentVec = Vec3.atLowerCornerOf(current);

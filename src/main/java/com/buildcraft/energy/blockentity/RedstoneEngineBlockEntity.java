@@ -65,19 +65,14 @@ public class RedstoneEngineBlockEntity extends EngineBlockEntity {
         return super.getPistonSpeed(stage) / 2f;
     }
 
-    /** See {@link com.buildcraft.Config#ENGINE_REDSTONE_MAX_PULSE_OUTPUT}'s javadoc for why this is a small flat
-     * cap rather than a fraction of the buffer - without it a single pulse could dump the whole 1000 FE buffer. */
+    /** Real source value (confirmed 2026-08-11 via BuildCraftAPI/BuildCraft GitHub source): 4 MJ = 40 FE at the
+     * real 1 MJ = 10 FE ratio - practically never the binding constraint anyway, since {@link #getMaxPower} (the
+     * buffer, 1 MJ = 10 FE, force-refilled to max every tick in {@link #burn}) is smaller than this cap, so real
+     * sustained delivery is naturally limited to ~10 FE/tick regardless of what this returns - exactly matching
+     * source's own actual dynamic (see {@code EngineBlockEntity.getMaxPowerExtracted}'s javadoc for the full
+     * explanation of why this port no longer has a separate "sustained" number). */
     @Override
     protected long getMaxPowerExtracted() {
         return Config.ENGINE_REDSTONE_MAX_PULSE_OUTPUT.get();
-    }
-
-    /** Real bug fixed (2026-08-08): this config already existed with exactly this intent ("a flat trickle") but
-     * was never actually wired into anything - {@link #getMaxPowerExtracted} (the PULSE burst cap) was being
-     * used for continuous receivers too, letting a single Redstone Engine run a Quarry at near-full speed. Now
-     * genuinely the weakest tier for anything that isn't a Wood pipe, matching source's real intent. */
-    @Override
-    protected long getSustainedFePerTick() {
-        return Config.ENGINE_REDSTONE_FE_PER_TICK.get();
     }
 }
